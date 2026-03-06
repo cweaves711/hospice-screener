@@ -477,6 +477,7 @@ def render_table(df_display):
 
     th = "padding:8px 12px;text-align:left;color:#475569;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1e293b;white-space:nowrap;background:#0a0d14"
     headers = ["Provider","State","City","Ownership","Indep?","Est.","Stars","HCI","ADC","Score","Tier"]
+    header_html = "".join(f"<th style='{th}'>{h}</th>" for h in headers)
 
     rows_html = ""
     for i, (_, r) in enumerate(df_display.iterrows()):
@@ -492,27 +493,36 @@ def render_table(df_display):
         hci_raw = str(r['HCI']) if pd.notna(r.get('HCI')) else "—"
         hci_display = hci_raw if hci_raw not in ("—","nan","") else "—"
         adc_color = "#22c55e" if pd.notna(r.get("Est ADC")) and 10 <= r["Est ADC"] <= 50 else "#94a3b8"
+        name     = r["Name"]
+        state    = r["State"]
+        city     = r["City"]
+        own      = r["Ownership Type"] or "—"
+        indep    = indep_badge(r["Independent"])
+        cert     = r["Cert Year"] or "—"
+        bar      = score_bar(r["Score"])
+        tier     = tier_badge(r["Tier"])
 
-        rows_html += f"""
-        <tr style="background:{bg};border-bottom:1px solid #0f172a">
-          <td style="padding:8px 12px;color:#f1f5f9;font-weight:600;font-size:13px">{r['Name']}</td>
-          <td style="padding:8px 12px"><span style="background:#1e3a5f;color:#93c5fd;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">{r['State']}</span></td>
-          <td style="padding:8px 12px;color:#64748b;font-size:12px">{r['City']}</td>
-          <td style="padding:8px 12px;color:#64748b;font-size:11px">{r['Ownership Type'] or '—'}</td>
-          <td style="padding:8px 12px">{indep_badge(r['Independent'])}</td>
-          <td style="padding:8px 12px;color:#64748b;font-size:12px">{r['Cert Year'] or '—'}</td>
-          <td style="padding:8px 12px;color:{stars_color};font-size:12px">{stars_display}</td>
-          <td style="padding:8px 12px;color:#64748b;font-size:12px">{hci_display}</td>
-          <td style="padding:8px 12px;color:{adc_color};font-size:12px">{adc}</td>
-          <td style="padding:8px 12px;min-width:130px">{score_bar(r['Score'])}</td>
-          <td style="padding:8px 12px">{tier_badge(r['Tier'])}</td>
-        </tr>"""
+        rows_html += (
+            f'<tr style="background:{bg};border-bottom:1px solid #0f172a">'
+            f'<td style="padding:8px 12px;color:#f1f5f9;font-weight:600;font-size:13px">{name}</td>'
+            f'<td style="padding:8px 12px"><span style="background:#1e3a5f;color:#93c5fd;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">{state}</span></td>'
+            f'<td style="padding:8px 12px;color:#64748b;font-size:12px">{city}</td>'
+            f'<td style="padding:8px 12px;color:#64748b;font-size:11px">{own}</td>'
+            f'<td style="padding:8px 12px">{indep}</td>'
+            f'<td style="padding:8px 12px;color:#64748b;font-size:12px">{cert}</td>'
+            f'<td style="padding:8px 12px;color:{stars_color};font-size:12px">{stars_display}</td>'
+            f'<td style="padding:8px 12px;color:#64748b;font-size:12px">{hci_display}</td>'
+            f'<td style="padding:8px 12px;color:{adc_color};font-size:12px">{adc}</td>'
+            f'<td style="padding:8px 12px;min-width:130px">{bar}</td>'
+            f'<td style="padding:8px 12px">{tier}</td>'
+            f'</tr>'
+        )
 
     html = f"""
     <div style="overflow-x:auto;border:1px solid #1e293b;border-radius:8px;max-height:520px;overflow-y:auto" id="main-table">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead style="position:sticky;top:0;z-index:10">
-          <tr>{''.join(f'<th style="{th}">{h}</th>' for h in headers)}</tr>
+          <tr>{header_html}</tr>
         </thead>
         <tbody>{rows_html}</tbody>
       </table>
