@@ -8,32 +8,91 @@ st.set_page_config(
     page_title="Hospice Target Screener | Willowbridge Capital",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# ── Styling ────────────────────────────────────────────────────────────────────
+# ── Dark Mode Styling ──────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-  [data-testid="stAppViewContainer"] { background: #0c0f18; color: #e2e8f0; }
-  [data-testid="stSidebar"] { background: #0a0d14; border-right: 1px solid #1e293b; }
-  [data-testid="stSidebar"] * { color: #94a3b8 !important; }
-  .stDataFrame { background: #0f1520; }
-  h1,h2,h3 { color: #f1f5f9 !important; }
-  .metric-card { background: #0f1520; border: 1px solid #1e293b; border-radius: 8px; padding: 14px 18px; }
-  .hot { color: #22c55e; font-weight: 700; }
-  .warm { color: #f59e0b; font-weight: 700; }
-  .cold { color: #475569; }
-  .flag { color: #f59e0b; }
-  .stButton button { background: #1d4ed8 !important; color: white !important; border: none !important; }
-  div[data-testid="stExpander"] { background: #0f1520; border: 1px solid #1e293b; border-radius: 6px; }
-  .stSelectbox > div, .stMultiSelect > div { background: #111827 !important; }
-  label { color: #94a3b8 !important; }
-  .upload-note { font-size: 11px; color: #374151; padding: 8px 0; }
+  [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    background: #0c0f18 !important; color: #e2e8f0 !important;
+  }
+  [data-testid="stSidebar"] { background: #0a0d14 !important; border-right: 1px solid #1e293b !important; }
+  [data-testid="stHeader"] { background: transparent !important; }
+  section[data-testid="stSidebar"] { display: none; }
+
+  h1,h2,h3,h4 { color: #f1f5f9 !important; }
+  p, li { color: #94a3b8 !important; }
+
+  /* Inputs */
+  [data-testid="stTextInput"] input {
+    background: #111827 !important; border: 1px solid #1e293b !important;
+    color: #e2e8f0 !important; border-radius: 6px !important;
+  }
+  [data-baseweb="select"] > div {
+    background: #111827 !important; border: 1px solid #1e293b !important;
+    color: #e2e8f0 !important;
+  }
+  [data-baseweb="popover"] { background: #111827 !important; border: 1px solid #1e293b !important; }
+  [role="listbox"] { background: #111827 !important; }
+  [role="option"] { color: #e2e8f0 !important; }
+  [role="option"]:hover { background: #1e293b !important; }
+  [data-baseweb="tag"] { background: #1e3a5f !important; color: #93c5fd !important; }
+
+  /* Metrics */
+  [data-testid="metric-container"] {
+    background: #0f1520 !important; border: 1px solid #1e293b !important;
+    border-radius: 8px !important; padding: 12px 16px !important;
+  }
+  [data-testid="stMetricLabel"] p { color: #475569 !important; font-size: 11px !important; }
+  [data-testid="stMetricValue"] { color: #f1f5f9 !important; }
+
+  /* Download button */
+  [data-testid="stDownloadButton"] button {
+    background: #1e3a5f !important; border: 1px solid #2563eb !important;
+    color: #93c5fd !important; border-radius: 6px !important; font-size: 12px !important;
+  }
+
+  /* Expander */
+  [data-testid="stExpander"] {
+    background: #0f1520 !important; border: 1px solid #1e293b !important;
+    border-radius: 8px !important;
+  }
+  [data-testid="stExpander"] summary p { color: #94a3b8 !important; }
+  details summary:hover { background: #111827 !important; }
+
+  /* Dataframe */
+  [data-testid="stDataFrame"] { border: 1px solid #1e293b !important; border-radius: 8px !important; }
+  .dvn-scroller { background: #0f1520 !important; }
+
+  /* File uploader */
+  [data-testid="stFileUploaderDropzone"] {
+    background: #0f1520 !important; border: 1px dashed #1e3a5f !important;
+  }
+
+  /* Toggle */
+  [data-testid="stToggle"] p { color: #94a3b8 !important; }
+
+  /* Caption */
+  [data-testid="stCaptionContainer"] p { color: #374151 !important; font-size: 10px !important; }
+
+  hr { border-color: #1e293b !important; margin: 12px 0 !important; }
+
+  /* Custom */
+  .sig-row { display:flex;align-items:flex-start;gap:10px;margin-bottom:5px;padding:7px 12px;background:#111827;border-radius:5px; }
+  .info-card { background:#111827;border:1px solid #1e293b;border-radius:6px;padding:10px 12px;margin-bottom:6px; }
+  .info-label { font-size:9px;letter-spacing:1px;color:#475569;text-transform:uppercase;margin-bottom:3px; }
+  .info-value { font-size:13px;color:#e2e8f0; }
+  .warn-banner { background:#2d1a00;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:12px; }
+  .filter-row { background:#0a0d14;border:1px solid #1e293b;border-radius:8px;padding:16px 20px;margin-bottom:16px; }
+  .score-table th { text-align:left;padding:8px 12px;color:#475569;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1e293b; }
+  .score-table td { padding:8px 12px;border-bottom:1px solid #0f172a;font-size:12px; }
+  .score-table tr:nth-child(even) td { background:#111827; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-TARGET_STATES = ["ID", "UT", "NV", "MT", "WY", "CO", "AZ", "TX", "OK"]
+TARGET_STATES = ["ID","UT","NV","MT","WY","CO","AZ","TX","OK"]
 
 KNOWN_CHAIN_PATTERNS = [
     "lhc group","lhc","enhabit","amedisys","vitas","compassus","interim healthcare",
@@ -67,449 +126,491 @@ KNOWN_CHAIN_PATTERNS = [
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def normalize_cols(df):
-    df.columns = (df.columns.str.strip()
-                  .str.lower()
-                  .str.replace(r'\s+', '_', regex=True)
-                  .str.replace(r'[()]', '', regex=True))
+    df.columns = (df.columns.str.strip().str.lower()
+                  .str.replace(r'\s+','_',regex=True)
+                  .str.replace(r'[()]','',regex=True))
     return df
 
 def get_ccn(row):
-    for col in ["cms_certification_number_ccn", "ccn", "cms_certification_number",
-                "prvdr_id", "provider_id", "prvdr_num", "facility_id", "certification_number"]:
+    for col in ["cms_certification_number_ccn","ccn","cms_certification_number",
+                "prvdr_id","provider_id","prvdr_num","facility_id","certification_number"]:
         if col in row.index and pd.notna(row[col]) and str(row[col]).strip():
             val = str(row[col]).strip()
-            # Pad to 6 digits
-            try:
-                return str(int(val)).zfill(6)
-            except:
-                return val
+            try: return str(int(val)).zfill(6)
+            except: return val
     return ""
 
 def detect_chain(name):
-    if not name:
-        return None
+    if not name: return None
     lower = str(name).lower()
-    for pattern in KNOWN_CHAIN_PATTERNS:
-        if pattern in lower:
-            return pattern
+    for p in KNOWN_CHAIN_PATTERNS:
+        if p in lower: return p
     return None
 
 def load_csv(file_or_path):
-    if isinstance(file_or_path, (str, Path)):
-        with open(file_or_path, 'r', encoding='utf-8-sig') as f:
-            content = f.read()
+    if isinstance(file_or_path,(str,Path)):
+        with open(file_or_path,'r',encoding='utf-8-sig') as f: content = f.read()
     else:
         content = file_or_path.read().decode('utf-8-sig')
-    delimiter = '\t' if '\t' in content.split('\n')[0] else ','
-    df = pd.read_csv(io.StringIO(content), sep=delimiter, dtype=str, on_bad_lines='skip')
+    delim = '\t' if '\t' in content.split('\n')[0] else ','
+    df = pd.read_csv(io.StringIO(content), sep=delim, dtype=str, on_bad_lines='skip')
     return normalize_cols(df)
 
 def score_target(gen_row, prov_row, puf_row, cahps_row):
-    score = 25
-    signals = []
-    ownership_flag = None
+    score = 25; signals = []; ownership_flag = None
 
-    # ── Independence ──
+    # Independence
     chain_src = prov_row if prov_row is not None else gen_row
     chain_val = ""
-    for col in ["affiliated_with_a_hospice_chain", "affiliated_with_chain", "chain_owned", "chain"]:
+    for col in ["affiliated_with_a_hospice_chain","affiliated_with_chain","chain_owned","chain"]:
         if col in chain_src.index and pd.notna(chain_src[col]):
-            chain_val = str(chain_src[col]).lower().strip()
-            break
-
-    cms_independent = chain_val in ("", "no", "n", "nan")
-    name = str(gen_row.get("facility_name", gen_row.get("provider_name", "")))
-    name_match = detect_chain(name)
-
-    if name_match and cms_independent:
-        ownership_flag = f'Name matches known chain pattern "{name_match}" — verify ownership before outreach'
-        score += 30
-        signals.append({"label": f"CMS: Independent — ⚠️ name suggests possible chain ({name_match}), verify", "type": "warn", "weight": 30})
+            chain_val = str(chain_src[col]).lower().strip(); break
+    cms_independent = chain_val in ("","no","n","nan")
+    name = str(gen_row.get("facility_name", gen_row.get("provider_name","")))
+    nm = detect_chain(name)
+    if nm and cms_independent:
+        ownership_flag = f'Name matches known chain pattern "{nm}" — verify ownership before outreach'
+        score += 30; signals.append({"label":f"CMS: Independent — ⚠️ name suggests possible chain ({nm}), verify","type":"warn","weight":30})
     elif cms_independent:
-        score += 30
-        signals.append({"label": "Independent operator — likely founder-owned", "type": "positive", "weight": 30})
+        score += 30; signals.append({"label":"Independent operator — likely founder-owned","type":"positive","weight":30})
     else:
-        score -= 20
-        signals.append({"label": "Chain-affiliated — harder negotiation", "type": "negative", "weight": -20})
+        score -= 20; signals.append({"label":"Chain-affiliated — harder negotiation","type":"negative","weight":-20})
         ownership_flag = "CMS reports chain-affiliated — confirm current ownership structure"
 
-    # ── Cert Age ──
-    cert_str = str(gen_row.get("certification_date", ""))
+    # Cert Age
+    cert_str = str(gen_row.get("certification_date",""))
     if cert_str and cert_str != "nan":
         try:
             parts = cert_str.split("/")
-            year = int(parts[2]) if len(parts) == 3 else int(parts[0])
-            if year <= 2005:   score += 25; signals.append({"label": f"Established {year} — 20+ yr referral roots", "type": "positive", "weight": 25})
-            elif year <= 2010: score += 20; signals.append({"label": f"Established {year} — deep market presence", "type": "positive", "weight": 20})
-            elif year <= 2015: score += 14; signals.append({"label": f"Certified {year} — mature operation", "type": "positive", "weight": 14})
-            elif year <= 2019: score += 8;  signals.append({"label": f"Certified {year}", "type": "neutral", "weight": 8})
-            else:              score += 3;  signals.append({"label": f"Newer provider ({year}) — limited track record", "type": "neutral", "weight": 3})
-        except:
-            pass
+            year = int(parts[2]) if len(parts)==3 else int(parts[0])
+            if year<=2005:   score+=25; signals.append({"label":f"Established {year} — 20+ yr referral roots","type":"positive","weight":25})
+            elif year<=2010: score+=20; signals.append({"label":f"Established {year} — deep market presence","type":"positive","weight":20})
+            elif year<=2015: score+=14; signals.append({"label":f"Certified {year} — mature operation","type":"positive","weight":14})
+            elif year<=2019: score+=8;  signals.append({"label":f"Certified {year}","type":"neutral","weight":8})
+            else:            score+=3;  signals.append({"label":f"Newer provider ({year}) — limited track record","type":"neutral","weight":3})
+        except: pass
 
-    # ── Star Rating ──
+    # Stars
     stars_src = prov_row if prov_row is not None else gen_row
     stars = 0
-    for col in ["overall_rating", "overall_star_rating", "hospice_overall_rating"]:
+    for col in ["overall_rating","overall_star_rating","hospice_overall_rating"]:
         if col in stars_src.index and pd.notna(stars_src[col]):
             try: stars = float(stars_src[col]); break
             except: pass
+    if 1<=stars<=2:  score+=25; signals.append({"label":f"Low stars ({stars}★) — distress, motivated seller","type":"hot","weight":25})
+    elif stars==3:   score+=10; signals.append({"label":"Average rating (3★) — improvement upside","type":"neutral","weight":10})
+    elif stars>=4:   score+=15; signals.append({"label":f"High quality ({stars}★) — premium asset","type":"positive","weight":15})
+    else:            score+=12; signals.append({"label":"No star rating — likely small/below survey threshold","type":"neutral","weight":12})
 
-    if 1 <= stars <= 2:   score += 25; signals.append({"label": f"Low stars ({stars}★) — distress, motivated seller", "type": "hot", "weight": 25})
-    elif stars == 3:       score += 10; signals.append({"label": "Average rating (3★) — improvement upside", "type": "neutral", "weight": 10})
-    elif stars >= 4:       score += 15; signals.append({"label": f"High quality ({stars}★) — premium asset", "type": "positive", "weight": 15})
-    else:                  score += 12; signals.append({"label": "No star rating — likely small/below survey threshold", "type": "neutral", "weight": 12})
-
-    # ── HCI ──
+    # HCI
     hci = 0
-    for col in ["hospice_care_index_score", "hci_score", "hospice_care_index"]:
-        src = prov_row if prov_row is not None else gen_row
+    src = prov_row if prov_row is not None else gen_row
+    for col in ["hospice_care_index_score","hci_score","hospice_care_index"]:
         if col in src.index and pd.notna(src[col]):
             try: hci = float(src[col]); break
             except: pass
+    if 1<=hci<6:   score+=20; signals.append({"label":f"Low HCI ({hci}/10) — operational challenges","type":"hot","weight":20})
+    elif 6<=hci<8: score+=8;  signals.append({"label":f"Average HCI ({hci}/10)","type":"neutral","weight":8})
+    elif hci>=8:   score+=5;  signals.append({"label":f"Strong HCI ({hci}/10)","type":"positive","weight":5})
+    else:          score+=10; signals.append({"label":"No HCI score — likely small/new","type":"neutral","weight":10})
 
-    if 1 <= hci < 6:  score += 20; signals.append({"label": f"Low HCI ({hci}/10) — operational challenges", "type": "hot", "weight": 20})
-    elif 6 <= hci < 8: score += 8; signals.append({"label": f"Average HCI ({hci}/10)", "type": "neutral", "weight": 8})
-    elif hci >= 8:     score += 5;  signals.append({"label": f"Strong HCI ({hci}/10)", "type": "positive", "weight": 5})
-    else:              score += 10; signals.append({"label": "No HCI score — likely small/new", "type": "neutral", "weight": 10})
-
-    # ── ADC from PUF ──
-    adc = 0
-    revenue = 0
-    benes = 0
+    # ADC
+    adc=0; revenue=0; benes=0
     if puf_row is not None:
-        try: benes = int(float(str(puf_row.get("bene_dstnct_cnt", 0) or 0)))
-        except: benes = 0
+        try: benes=int(float(str(puf_row.get("bene_dstnct_cnt",0) or 0)))
+        except: pass
         try:
-            srvc_days = int(float(str(puf_row.get("tot_srvc_days", 0) or 0)))
-            adc = round(srvc_days / 365, 1)
-        except: adc = 0
+            sd=int(float(str(puf_row.get("tot_srvc_days",0) or 0)))
+            adc=round(sd/365,1)
+        except: pass
         try:
-            pay_str = str(puf_row.get("tot_mdcr_pymt_amt", "0") or "0").replace("$","").replace(",","")
-            revenue = float(pay_str)
-        except: revenue = 0
+            ps=str(puf_row.get("tot_mdcr_pymt_amt","0") or "0").replace("$","").replace(",","")
+            revenue=float(ps)
+        except: pass
+        av=adc or benes
+        if 10<=av<=50:    score+=15; signals.append({"label":f"Est. ADC ~{av} — in target range (10–50)","type":"positive","weight":15})
+        elif 50<av<=80:   score+=8;  signals.append({"label":f"Est. ADC ~{av} — slightly above target","type":"neutral","weight":8})
+        elif av>80:       score+=3;  signals.append({"label":f"Est. ADC ~{av} — larger operator","type":"neutral","weight":3})
+        elif av>0:        score+=10; signals.append({"label":f"Est. ADC ~{av} — very small","type":"neutral","weight":10})
 
-        adc_val = adc or benes
-        if 10 <= adc_val <= 50:   score += 15; signals.append({"label": f"Est. ADC ~{adc_val} — in target range (10–50)", "type": "positive", "weight": 15})
-        elif 50 < adc_val <= 80:  score += 8;  signals.append({"label": f"Est. ADC ~{adc_val} — slightly above target", "type": "neutral", "weight": 8})
-        elif adc_val > 80:        score += 3;  signals.append({"label": f"Est. ADC ~{adc_val} — larger operator", "type": "neutral", "weight": 3})
-        elif adc_val > 0:         score += 10; signals.append({"label": f"Est. ADC ~{adc_val} — very small", "type": "neutral", "weight": 10})
-
-    # ── CAHPS ──
-    cahps_rating = None
+    # CAHPS
+    cahps_rating=None
     if cahps_row is not None:
-        for col in ["rating_of_this_hospice_summary_score", "overall_rating_of_hospice", "cahps_overall_rating"]:
+        for col in ["rating_of_this_hospice_summary_score","overall_rating_of_hospice","cahps_overall_rating"]:
             if col in cahps_row.index and pd.notna(cahps_row[col]):
-                try: cahps_rating = float(cahps_row[col]); break
+                try: cahps_rating=float(cahps_row[col]); break
                 except: pass
         if cahps_rating:
-            if cahps_rating < 70:   score += 15; signals.append({"label": f"Low CAHPS ({cahps_rating}%) — family dissatisfaction", "type": "hot", "weight": 15})
-            elif cahps_rating < 85: score += 6;  signals.append({"label": f"Average CAHPS ({cahps_rating}%)", "type": "neutral", "weight": 6})
-            else:                   score += 10; signals.append({"label": f"Strong CAHPS ({cahps_rating}%)", "type": "positive", "weight": 10})
+            if cahps_rating<70:   score+=15; signals.append({"label":f"Low CAHPS ({cahps_rating}%) — family dissatisfaction","type":"hot","weight":15})
+            elif cahps_rating<85: score+=6;  signals.append({"label":f"Average CAHPS ({cahps_rating}%)","type":"neutral","weight":6})
+            else:                 score+=10; signals.append({"label":f"Strong CAHPS ({cahps_rating}%)","type":"positive","weight":10})
 
     return score, signals, adc, benes, revenue, cahps_rating, ownership_flag
 
 def score_label(s):
-    if s >= 70: return "🔥 HOT"
-    if s >= 45: return "🌤 WARM"
+    if s>=70: return "🔥 HOT"
+    if s>=45: return "🌤 WARM"
     return "❄️ COLD"
 
 def score_color(s):
-    if s >= 70: return "hot"
-    if s >= 45: return "warm"
-    return "cold"
+    if s>=70: return "#22c55e"
+    if s>=45: return "#f59e0b"
+    return "#475569"
 
-# ── Data Loading ───────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
 def load_defaults():
-    base = Path(__file__).parent / "data"
-    gen = load_csv(base / "general.csv") if (base / "general.csv").exists() else None
-    puf = load_csv(base / "puf.csv") if (base / "puf.csv").exists() else None
+    base = Path(__file__).parent/"data"
+    gen = load_csv(base/"general.csv") if (base/"general.csv").exists() else None
+    puf = load_csv(base/"puf.csv")     if (base/"puf.csv").exists()     else None
     return gen, puf
 
 def build_targets(df_gen, df_puf=None, df_prov=None, df_cahps=None, for_profit_only=True, selected_states=None):
-    if selected_states is None:
-        selected_states = TARGET_STATES
-
-    # Index supplemental files by CCN
-    puf_by_ccn = {}
-    prov_by_ccn = {}
-    cahps_by_ccn = {}
-
+    if selected_states is None: selected_states=TARGET_STATES
+    puf_idx={}; prov_idx={}; cahps_idx={}
     if df_puf is not None:
-        # Filter to PROVIDER rows only
-        if "smry_ctgry" in df_puf.columns:
-            df_puf = df_puf[df_puf["smry_ctgry"].str.upper().str.strip() == "PROVIDER"]
-        for _, row in df_puf.iterrows():
-            ccn = get_ccn(row)
-            if ccn: puf_by_ccn[ccn] = row
-
+        df_p = df_puf[df_puf["smry_ctgry"].str.upper().str.strip()=="PROVIDER"] if "smry_ctgry" in df_puf.columns else df_puf
+        for _,r in df_p.iterrows():
+            c=get_ccn(r)
+            if c: puf_idx[c]=r
     if df_prov is not None:
-        for _, row in df_prov.iterrows():
-            ccn = get_ccn(row)
-            if ccn: prov_by_ccn[ccn] = row
-
+        for _,r in df_prov.iterrows():
+            c=get_ccn(r)
+            if c: prov_idx[c]=r
     if df_cahps is not None:
-        for _, row in df_cahps.iterrows():
-            ccn = get_ccn(row)
-            if ccn: cahps_by_ccn[ccn] = row
+        for _,r in df_cahps.iterrows():
+            c=get_ccn(r)
+            if c: cahps_idx[c]=r
 
-    # Get state col
-    state_col = next((c for c in ["state", "state_code", "provider_state"] if c in df_gen.columns), None)
-    own_col   = next((c for c in ["ownership_type", "type_of_ownership"] if c in df_gen.columns), None)
-
-    results = []
-    for _, row in df_gen.iterrows():
-        state = str(row.get(state_col, "")).strip().upper() if state_col else ""
-        if state not in selected_states:
-            continue
+    state_col=next((c for c in ["state","state_code","provider_state"] if c in df_gen.columns),None)
+    own_col  =next((c for c in ["ownership_type","type_of_ownership"]  if c in df_gen.columns),None)
+    results=[]
+    for _,row in df_gen.iterrows():
+        state=str(row.get(state_col,"")).strip().upper() if state_col else ""
+        if state not in selected_states: continue
         if for_profit_only and own_col:
-            own = str(row.get(own_col, "")).lower()
-            if not ("for-profit" in own or "for profit" in own or "proprietary" in own):
-                continue
+            own=str(row.get(own_col,"")).lower()
+            if not("for-profit" in own or "for profit" in own or "proprietary" in own): continue
+        ccn=get_ccn(row)
+        puf_r=puf_idx.get(ccn); prov_r=prov_idx.get(ccn); cahps_r=cahps_idx.get(ccn)
+        score,signals,adc,benes,revenue,cahps_rating,ownership_flag = score_target(row,prov_r,puf_r,cahps_r)
 
-        ccn = get_ccn(row)
-        puf_row   = puf_by_ccn.get(ccn)
-        prov_row  = prov_by_ccn.get(ccn)
-        cahps_row = cahps_by_ccn.get(ccn)
+        name_col  =next((c for c in ["facility_name","provider_name","organization_name"] if c in row.index),None)
+        city_col  =next((c for c in ["city/town","city_town","city","provider_city"]      if c in row.index),None)
+        cert_col  =next((c for c in ["certification_date","date_of_certification"]        if c in row.index),None)
+        phone_col =next((c for c in ["telephone_number","phone"]                          if c in row.index),None)
+        ss=prov_r if prov_r is not None else row
+        hs=prov_r if prov_r is not None else row
+        cs=prov_r if prov_r is not None else row
+        stars_col =next((c for c in ["overall_rating","overall_star_rating","hospice_overall_rating"]     if c in ss.index),None)
+        hci_col   =next((c for c in ["hospice_care_index_score","hci_score","hospice_care_index"]         if c in hs.index),None)
+        chain_col =next((c for c in ["affiliated_with_a_hospice_chain","affiliated_with_chain","chain_owned","chain"] if c in cs.index),None)
 
-        score, signals, adc, benes, revenue, cahps_rating, ownership_flag = score_target(
-            row, prov_row, puf_row, cahps_row
-        )
-
-        name_col = next((c for c in ["facility_name","provider_name","organization_name"] if c in row.index), None)
-        city_col = next((c for c in ["city/town","city_town","city","provider_city"] if c in row.index), None)
-        cert_col = next((c for c in ["certification_date","date_of_certification"] if c in row.index), None)
-        phone_col = next((c for c in ["telephone_number","phone"] if c in row.index), None)
-        stars_src = prov_row if prov_row is not None else row
-        stars_col = next((c for c in ["overall_rating","overall_star_rating","hospice_overall_rating"] if c in stars_src.index), None)
-        hci_src = prov_row if prov_row is not None else row
-        hci_col = next((c for c in ["hospice_care_index_score","hci_score","hospice_care_index"] if c in hci_src.index), None)
-        chain_src = prov_row if prov_row is not None else row
-        chain_col = next((c for c in ["affiliated_with_a_hospice_chain","affiliated_with_chain","chain_owned","chain"] if c in chain_src.index), None)
-
-        cert_str = str(row.get(cert_col, "")) if cert_col else ""
-        cert_year = ""
-        if cert_str and cert_str != "nan":
+        cert_str=str(row.get(cert_col,"")) if cert_col else ""
+        cert_year=""
+        if cert_str and cert_str!="nan":
             try:
-                parts = cert_str.split("/")
-                cert_year = parts[2] if len(parts) == 3 else parts[0]
+                pts=cert_str.split("/"); cert_year=pts[2] if len(pts)==3 else pts[0]
             except: pass
 
+        chain_val=str(cs.get(chain_col,"")) if chain_col else ""
+        is_indep=chain_val.lower().strip() in ("","no","n","nan")
+        if ownership_flag and is_indep: indep_display="? Verify"
+        elif is_indep: indep_display="✓ Yes"
+        else: indep_display="✗ Chain"
+
         results.append({
-            "Name": str(row.get(name_col, "Unknown")) if name_col else "Unknown",
-            "CCN": ccn,
-            "State": state,
-            "City": str(row.get(city_col, "")) if city_col else "",
-            "Phone": str(row.get(phone_col, "")) if phone_col else "",
-            "Ownership": str(row.get(own_col, "")) if own_col else "",
-            "Chain": str(chain_src.get(chain_col, "")) if chain_col else "",
-            "Cert Year": cert_year,
-            "Stars": str(stars_src.get(stars_col, "—")) if stars_col else "—",
-            "HCI": str(hci_src.get(hci_col, "—")) if hci_col else "—",
-            "Est ADC": adc if adc else (benes if benes else None),
-            "Est Revenue ($k)": round(revenue / 1000) if revenue else None,
-            "CAHPS": cahps_rating,
-            "Score": score,
-            "Label": score_label(score),
-            "Signals": signals,
-            "Ownership Flag": ownership_flag,
-            "Has PUF": puf_row is not None,
-            "Has CAHPS": cahps_row is not None,
+            "Name":              str(row.get(name_col,"Unknown")) if name_col else "Unknown",
+            "CCN":               ccn,
+            "State":             state,
+            "City":              str(row.get(city_col,"")) if city_col else "",
+            "Phone":             str(row.get(phone_col,"")) if phone_col else "",
+            "Ownership Type":    str(row.get(own_col,"")) if own_col else "",
+            "Independent":       indep_display,
+            "Cert Year":         cert_year,
+            "Stars":             str(ss.get(stars_col,"—")) if stars_col else "—",
+            "HCI":               str(hs.get(hci_col,"—")) if hci_col else "—",
+            "Est ADC":           adc if adc else (benes if benes else None),
+            "Est Revenue ($k)":  round(revenue/1000) if revenue else None,
+            "CAHPS %":           cahps_rating,
+            "Score":             score,
+            "Tier":              score_label(score),
+            "Signals":           signals,
+            "Ownership Flag":    ownership_flag,
+            "Has PUF":           puf_r is not None,
+            "Has CAHPS":         cahps_r is not None,
         })
 
-    df = pd.DataFrame(results)
-    df = df.sort_values("Score", ascending=False).reset_index(drop=True)
-    return df
+    return pd.DataFrame(results).sort_values("Score",ascending=False).reset_index(drop=True)
 
-# ── UI ─────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# RENDER
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Header
 st.markdown("""
-<div style="padding: 4px 0 16px 0;">
-  <div style="font-size:10px;letter-spacing:3px;color:#475569;text-transform:uppercase;">Willowbridge Capital · Deal Sourcing</div>
-  <div style="font-size:24px;font-weight:700;color:#f8fafc;margin-top:4px;">Hospice Target Screener</div>
-  <div style="font-size:12px;color:#475569;margin-top:2px;">ID · UT · NV · MT · WY · CO · AZ · TX · OK · Scored 0–125</div>
+<div style="border-bottom:1px solid #1e293b;padding-bottom:16px;margin-bottom:20px">
+  <div style="font-size:10px;letter-spacing:3px;color:#475569;text-transform:uppercase">Willowbridge Capital · Deal Sourcing</div>
+  <div style="font-size:26px;font-weight:700;color:#f8fafc;margin-top:4px">Hospice Target Screener</div>
+  <div style="font-size:12px;color:#475569;margin-top:3px">CMS data · scored 0–125 · ID · UT · NV · MT · WY · CO · AZ · TX · OK</div>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙️ Filters")
-
-    selected_states = st.multiselect(
-        "States", TARGET_STATES, default=TARGET_STATES, key="states"
-    )
-
-    for_profit_only = st.toggle("For-profit only", value=True)
-
-    score_filter = st.selectbox("Min score tier", ["All", "🌤 WARM (45+)", "🔥 HOT (70+)"])
-
-    search = st.text_input("Search name / city", "")
-
-    st.markdown("---")
-    st.markdown("### 📂 Update Data Files")
-    st.markdown('<div class="upload-note">Default data is Feb 2026. Drop new CMS CSVs to refresh.</div>', unsafe_allow_html=True)
-
-    up_general  = st.file_uploader("General Information CSV", type="csv", key="up_gen")
-    up_prov     = st.file_uploader("Provider Information CSV (stars/HCI)", type="csv", key="up_prov")
-    up_puf      = st.file_uploader("PAC PUF CSV (utilization)", type="csv", key="up_puf")
-    up_cahps    = st.file_uploader("CAHPS Survey CSV", type="csv", key="up_cahps")
-
-    st.markdown("---")
-    st.markdown('<div class="upload-note">data.cms.gov/provider-data/topics/hospice-care</div>', unsafe_allow_html=True)
-
-# ── Load Data ──────────────────────────────────────────────────────────────────
-with st.spinner("Loading data..."):
+# Load defaults
+with st.spinner("Loading CMS data..."):
     df_gen_default, df_puf_default = load_defaults()
 
+# ── Filter Bar ─────────────────────────────────────────────────────────────────
+st.markdown('<div class="filter-row">', unsafe_allow_html=True)
+fc1, fc2, fc3, fc4 = st.columns([2.5, 2, 1.8, 1])
+
+with fc1:
+    search = st.text_input("🔍 Search provider or city", "", placeholder="e.g. Boise, Heart n Home...")
+with fc2:
+    selected_states = st.multiselect(
+        "States", options=TARGET_STATES, default=TARGET_STATES, placeholder="Select states..."
+    )
+with fc3:
+    score_filter = st.selectbox("Minimum tier", ["All tiers","🌤 WARM and above (45+)","🔥 HOT only (70+)"])
+with fc4:
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+    for_profit_only = st.toggle("For-profit only", value=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ── Data file uploads ──────────────────────────────────────────────────────────
+with st.expander("📂  Update CMS Data Files  ·  *default: Feb 2026 — upload newer files here*", expanded=False):
+    uc1,uc2,uc3,uc4 = st.columns(4)
+    with uc1:
+        up_general = st.file_uploader("General Information *(required)*", type="csv", key="up_gen")
+        st.caption("data.cms.gov → Hospice - General Information")
+    with uc2:
+        up_prov = st.file_uploader("Provider Information", type="csv", key="up_prov")
+        st.caption("Stars, HCI score, chain affiliation")
+    with uc3:
+        up_puf = st.file_uploader("PAC PUF *(utilization)*", type="csv", key="up_puf")
+        st.caption("catalog.data.gov → Medicare PAC PUF Hospice")
+    with uc4:
+        up_cahps = st.file_uploader("CAHPS Survey", type="csv", key="up_cahps")
+        st.caption("Family satisfaction — larger providers only")
+
+# Resolve sources
 df_gen   = load_csv(up_general) if up_general else df_gen_default
-df_puf   = load_csv(up_puf) if up_puf else df_puf_default
-df_prov  = load_csv(up_prov) if up_prov else None
-df_cahps = load_csv(up_cahps) if up_cahps else None
+df_puf   = load_csv(up_puf)     if up_puf     else df_puf_default
+df_prov  = load_csv(up_prov)    if up_prov    else None
+df_cahps = load_csv(up_cahps)   if up_cahps   else None
 
 if df_gen is None:
-    st.error("No General Information file found. Please upload one in the sidebar.")
+    st.error("No General Information file found. Upload one above.")
+    st.stop()
+if not selected_states:
+    st.warning("Select at least one state to continue.")
     st.stop()
 
-# ── Build Targets ──────────────────────────────────────────────────────────────
-with st.spinner("Scoring targets..."):
-    df = build_targets(df_gen, df_puf, df_prov, df_cahps,
-                       for_profit_only=for_profit_only,
-                       selected_states=selected_states if selected_states else TARGET_STATES)
+# Build
+with st.spinner("Scoring providers..."):
+    df_all = build_targets(df_gen, df_puf, df_prov, df_cahps,
+                           for_profit_only=for_profit_only,
+                           selected_states=selected_states)
 
-# ── Apply UI Filters ───────────────────────────────────────────────────────────
-if score_filter == "🔥 HOT (70+)":
-    df = df[df["Score"] >= 70]
-elif score_filter == "🌤 WARM (45+)":
-    df = df[df["Score"] >= 45]
-
+# Apply UI filters
+df = df_all.copy()
+if score_filter == "🔥 HOT only (70+)":        df = df[df["Score"] >= 70]
+elif score_filter == "🌤 WARM and above (45+)": df = df[df["Score"] >= 45]
 if search:
-    mask = (df["Name"].str.contains(search, case=False, na=False) |
-            df["City"].str.contains(search, case=False, na=False))
-    df = df[mask]
+    df = df[df["Name"].str.contains(search,case=False,na=False) |
+            df["City"].str.contains(search,case=False,na=False)]
 
 # ── KPI Cards ──────────────────────────────────────────────────────────────────
-c1, c2, c3, c4, c5 = st.columns(5)
-with c1:
-    st.metric("Total Shown", len(df))
-with c2:
-    st.metric("🔥 HOT (70+)", len(df[df["Score"] >= 70]))
-with c3:
-    st.metric("🌤 WARM (45+)", len(df[(df["Score"] >= 45) & (df["Score"] < 70)]))
-with c4:
-    st.metric("⚠️ Verify Ownership", len(df[df["Ownership Flag"].notna()]))
-with c5:
-    st.metric("Has Census Data", len(df[df["Has PUF"]]))
+k1,k2,k3,k4,k5 = st.columns(5)
+with k1: st.metric("Total Providers", len(df))
+with k2: st.metric("🔥 HOT (70+)", len(df[df["Score"]>=70]))
+with k3: st.metric("🌤 WARM (45–69)", len(df[(df["Score"]>=45)&(df["Score"]<70)]))
+with k4: st.metric("⚠️ Verify Ownership", int(df["Ownership Flag"].notna().sum()))
+with k5: st.metric("Has Census Data", int(df["Has PUF"].sum()))
 
-st.markdown("---")
+st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-# ── Export ─────────────────────────────────────────────────────────────────────
-export_df = df.drop(columns=["Signals", "Has PUF", "Has CAHPS"], errors="ignore")
-csv_bytes = export_df.to_csv(index=False).encode()
-st.download_button("⬇ Export CSV", csv_bytes, "hospice_targets.csv", "text/csv", use_container_width=False)
-
-st.markdown(f"**{len(df)} providers** · click any row to expand details")
+# Export
+ec1,ec2 = st.columns([9,1])
+with ec2:
+    export_df = df.drop(columns=["Signals","Has PUF","Has CAHPS","Ownership Flag"],errors="ignore")
+    st.download_button("⬇ Export CSV", export_df.to_csv(index=False).encode(),
+                       "hospice_targets.csv","text/csv",use_container_width=True)
+with ec1:
+    st.markdown(f"<div style='color:#475569;font-size:12px;padding-top:8px'>{len(df)} providers · sorted by score descending</div>",unsafe_allow_html=True)
 
 # ── Main Table ─────────────────────────────────────────────────────────────────
-def render_label(label):
-    if "HOT" in label: return f'<span class="hot">{label}</span>'
-    if "WARM" in label: return f'<span class="warm">{label}</span>'
-    return f'<span class="cold">{label}</span>'
-
-def render_flag(flag):
-    if pd.notna(flag) and flag:
-        return f'<span class="flag">⚠️</span>'
-    return ""
-
-def render_indep(chain, flag):
-    chain_val = str(chain).lower().strip() if pd.notna(chain) else ""
-    is_indep = chain_val in ("", "no", "n", "nan")
-    if flag and pd.notna(flag) and is_indep:
-        return '<span style="color:#f59e0b;font-weight:700">?</span>'
-    elif is_indep:
-        return '<span style="color:#22c55e;font-weight:700">✓</span>'
-    return '<span style="color:#ef4444;font-weight:700">✗</span>'
-
-# Build display table
-display_cols = ["Name", "State", "City", "Ownership", "Cert Year", "Stars", "HCI", "Est ADC", "Score", "Label", "Ownership Flag", "Chain"]
-
 st.dataframe(
-    df[display_cols].rename(columns={
-        "Ownership Flag": "⚠️",
-        "Cert Year": "Yr",
-        "Est ADC": "ADC",
-        "Ownership": "Type",
-    }),
+    df[["Name","State","City","Ownership Type","Independent","Cert Year","Stars","HCI","Est ADC","Score","Tier"]],
     use_container_width=True,
-    height=480,
-    column_config={
-        "Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=125, format="%d"),
-        "ADC": st.column_config.NumberColumn("Est ADC", format="%.1f"),
-        "⚠️": st.column_config.TextColumn("⚠️", width="small"),
-        "Label": st.column_config.TextColumn("Tier", width="small"),
-    },
+    height=500,
     hide_index=True,
+    column_config={
+        "Name":         st.column_config.TextColumn("Provider Name", width="large"),
+        "State":        st.column_config.TextColumn("State", width="small"),
+        "City":         st.column_config.TextColumn("City"),
+        "Ownership Type": st.column_config.TextColumn("Ownership",
+                            help="Legal ownership type per CMS registration"),
+        "Independent":  st.column_config.TextColumn("Independent?",
+                            help="✓ Yes — CMS reports no chain affiliation\n"
+                                 "? Verify — CMS says independent but name matches a known chain pattern. Check before calling.\n"
+                                 "✗ Chain — CMS reports chain-affiliated"),
+        "Cert Year":    st.column_config.TextColumn("Est.",width="small",
+                            help="Year first certified by Medicare. Older = deeper referral network."),
+        "Stars":        st.column_config.TextColumn("Stars",width="small",
+                            help="CMS star rating (1–5★). Only populated for providers with 50+ patients.\n"
+                                 "Low stars may indicate distress or motivated seller.\n"
+                                 "Blank = too small to be rated."),
+        "HCI":          st.column_config.TextColumn("HCI",width="small",
+                            help="Hospice Care Index (0–10). CMS composite quality score.\n"
+                                 "Below 6 = operational challenges.\n"
+                                 "Blank = too small or too new to be scored."),
+        "Est ADC":      st.column_config.NumberColumn("Est. ADC",format="%.1f",
+                            help="Estimated Average Daily Census.\n"
+                                 "Calculated from Medicare service days ÷ 365.\n"
+                                 "Target range: 10–50 patients/day."),
+        "Score":        st.column_config.ProgressColumn("Score",min_value=0,max_value=125,format="%d",
+                            help="Acquisition attractiveness score (0–125).\n"
+                                 "🔥 HOT ≥70 · 🌤 WARM ≥45 · ❄️ COLD <45\n"
+                                 "See 'How Scoring Works' below for breakdown."),
+        "Tier":         st.column_config.TextColumn("Tier",width="small"),
+    }
 )
 
-# ── Detail Expander ────────────────────────────────────────────────────────────
-st.markdown("---")
-st.markdown("### 🔍 Provider Detail")
+# ── Scoring Reference ──────────────────────────────────────────────────────────
+with st.expander("📊  How Scoring Works", expanded=False):
+    st.markdown("""
+<div style="color:#94a3b8;font-size:13px;padding:4px 0 12px 0">
+All for-profit hospices start with a <strong style="color:#e2e8f0">base score of 25</strong>.
+Points are added or subtracted based on six acquisition signals below.
+Maximum possible score is <strong style="color:#e2e8f0">125</strong>.
+<br><br>
+<strong style="color:#22c55e">🔥 HOT ≥ 70</strong> &nbsp;·&nbsp;
+<strong style="color:#f59e0b">🌤 WARM ≥ 45</strong> &nbsp;·&nbsp;
+<strong style="color:#475569">❄️ COLD &lt; 45</strong>
+</div>
 
-selected_name = st.selectbox(
-    "Select provider to view details",
-    options=df["Name"].tolist(),
-    index=0 if len(df) > 0 else None,
-    key="detail_select"
-)
+<table class="score-table" style="width:100%;border-collapse:collapse">
+<thead>
+  <tr>
+    <th>Signal</th><th>Condition</th>
+    <th style="text-align:right">Points</th>
+    <th>Why it matters</th>
+  </tr>
+</thead>
+<tbody>
+  <tr><td style="color:#e2e8f0;font-weight:600">Independence</td><td style="color:#94a3b8">No chain affiliation (CMS)</td><td style="text-align:right;color:#22c55e;font-weight:700">+30</td><td style="color:#64748b">Founder-owned = motivated seller, simpler structure</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Independence</td><td style="color:#94a3b8">Chain-affiliated</td><td style="text-align:right;color:#ef4444;font-weight:700">−20</td><td style="color:#64748b">Corporate seller = lawyers, longer timeline, harder terms</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2005</td><td style="text-align:right;color:#22c55e;font-weight:700">+25</td><td style="color:#64748b">20+ years of referral relationships — hardest moat to replicate</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2010</td><td style="text-align:right;color:#22c55e;font-weight:700">+20</td><td style="color:#64748b">Deep market presence</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2015</td><td style="text-align:right;color:#22c55e;font-weight:700">+14</td><td style="color:#64748b">Mature operation</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2019</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Growing operation</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≥ 2020</td><td style="text-align:right;color:#475569;font-weight:700">+3</td><td style="color:#64748b">Limited track record</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">1–2 stars</td><td style="text-align:right;color:#ef4444;font-weight:700">+25 🔥</td><td style="color:#64748b">Distressed operator — more likely to accept favorable terms</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">3 stars</td><td style="text-align:right;color:#f59e0b;font-weight:700">+10</td><td style="color:#64748b">Average quality, improvement upside</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">4–5 stars</td><td style="text-align:right;color:#22c55e;font-weight:700">+15</td><td style="color:#64748b">Premium asset, strong clinical outcomes</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">No rating</td><td style="text-align:right;color:#f59e0b;font-weight:700">+12</td><td style="color:#64748b">Below 50-patient survey threshold — small target signal</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">Below 6 / 10</td><td style="text-align:right;color:#ef4444;font-weight:700">+20 🔥</td><td style="color:#64748b">Operational challenges — seller leverage is low</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">6–8 / 10</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Average quality</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">8+ / 10</td><td style="text-align:right;color:#22c55e;font-weight:700">+5</td><td style="color:#64748b">Strong operator — commands premium valuation</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">Not scored</td><td style="text-align:right;color:#f59e0b;font-weight:700">+10</td><td style="color:#64748b">Too small for CMS scoring — small target signal</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Est. ADC</td><td style="color:#94a3b8">10–50 patients/day</td><td style="text-align:right;color:#22c55e;font-weight:700">+15</td><td style="color:#64748b">Sweet spot — real cash flow, manageable for seller note structure</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Est. ADC</td><td style="color:#94a3b8">50–80 patients/day</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Slightly above target, may need larger deal structure</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Est. ADC</td><td style="color:#94a3b8">&gt; 80 patients/day</td><td style="text-align:right;color:#475569;font-weight:700">+3</td><td style="color:#64748b">Larger operator</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">Below 70%</td><td style="text-align:right;color:#ef4444;font-weight:700">+15 🔥</td><td style="color:#64748b">Family dissatisfaction — operational or staffing issues</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">70–84%</td><td style="text-align:right;color:#f59e0b;font-weight:700">+6</td><td style="color:#64748b">Average family satisfaction</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">85%+</td><td style="text-align:right;color:#22c55e;font-weight:700">+10</td><td style="color:#64748b">Strong reputation — families rate care highly</td></tr>
+</tbody>
+</table>
 
-if selected_name:
-    row = df[df["Name"] == selected_name].iloc[0]
+<div style="margin-top:14px;background:#0f1520;border:1px solid #1e293b;border-radius:6px;padding:12px 16px;font-size:11px;color:#64748b">
+  <strong style="color:#94a3b8">Data sources:</strong>
+  CMS General Information (ownership, cert date) ·
+  PAC PUF 2023 (ADC estimated as service days ÷ 365, revenue) ·
+  Provider Information (stars, HCI, chain) ·
+  CAHPS Survey (family satisfaction) ·
+  <strong style="color:#94a3b8">Note:</strong>
+  Stars and HCI are only populated for providers with 50+ patients.
+  ADC does not include non-Medicare patients.
+  CMS data lags reality by 6–18 months — always verify ownership independently before outreach.
+</div>
+""", unsafe_allow_html=True)
 
-    col1, col2 = st.columns([2, 1])
+# ── Provider Detail ────────────────────────────────────────────────────────────
+st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+st.markdown("<div style='color:#f1f5f9;font-size:16px;font-weight:700;margin-bottom:10px'>🔍 Provider Detail</div>", unsafe_allow_html=True)
 
-    with col1:
-        st.markdown(f"#### {row['Name']}")
-        st.markdown(f"**{row['City']}, {row['State']}** · CCN: `{row['CCN']}`")
+if len(df)==0:
+    st.info("No providers match current filters.")
+else:
+    sel_name = st.selectbox("Select a provider to view full signals",
+                            options=df["Name"].tolist(), index=0,
+                            key="detail_select", label_visibility="collapsed")
+    if sel_name:
+        row = df[df["Name"]==sel_name].iloc[0]
+        sc = row["Score"]; col = score_color(sc)
 
-        if pd.notna(row.get("Ownership Flag")) and row["Ownership Flag"]:
-            st.warning(f"⚠️ **Verify Ownership Before Outreach**\n\n{row['Ownership Flag']}")
+        d1,d2 = st.columns([3,1])
+        with d1:
+            st.markdown(f"""
+            <div style="background:#0f1520;border:1px solid #1e293b;border-radius:10px;padding:16px 20px;margin-bottom:10px">
+              <div style="font-size:18px;font-weight:700;color:#f1f5f9">{row['Name']}</div>
+              <div style="font-size:12px;color:#475569;margin-top:3px">
+                {row['City']}, {row['State']} &nbsp;·&nbsp;
+                CCN: <code style="background:#1e293b;color:#94a3b8;padding:1px 6px;border-radius:3px">{row['CCN']}</code>
+                &nbsp;·&nbsp; {row['Phone']}
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        # Info grid
-        info = {
-            "Phone": row.get("Phone", "—"),
-            "Ownership": row.get("Ownership", "—"),
-            "Chain": row.get("Chain") or "Independent",
-            "Certified": row.get("Cert Year", "—"),
-            "Stars": f"{row['Stars']}★" if row['Stars'] not in ("—","nan","") else "No rating",
-            "HCI Score": row.get("HCI", "—"),
-            "Est. ADC": f"{row['Est ADC']:.1f} pts/day" if pd.notna(row.get("Est ADC")) else "No PUF data",
-            "Est. Revenue": f"${row['Est Revenue ($k)']:.0f}k Medicare/yr" if pd.notna(row.get("Est Revenue ($k)")) else "No PUF data",
-            "CAHPS": f"{row['CAHPS']}%" if pd.notna(row.get("CAHPS")) else "Not available",
-        }
-        cols = st.columns(3)
-        for i, (k, v) in enumerate(info.items()):
-            with cols[i % 3]:
-                st.markdown(f"**{k}**  \n{v}")
+            if pd.notna(row.get("Ownership Flag")) and row["Ownership Flag"]:
+                st.markdown(f"""
+                <div class="warn-banner">
+                  <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:3px">⚠️ Verify Ownership Before Outreach</div>
+                  <div style="font-size:12px;color:#d97706">{row['Ownership Flag']}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-    with col2:
-        # Score badge
-        score = row["Score"]
-        label = row["Label"]
-        color = "#22c55e" if score >= 70 else "#f59e0b" if score >= 45 else "#475569"
-        st.markdown(f"""
-        <div style="background:{color}22;border:2px solid {color};border-radius:12px;padding:20px;text-align:center;margin-bottom:12px;">
-          <div style="font-size:36px;font-weight:700;color:{color};">{score}</div>
-          <div style="font-size:14px;font-weight:700;color:{color};">{label}</div>
-          <div style="font-size:11px;color:#475569;margin-top:4px;">out of 125</div>
-        </div>
-        """, unsafe_allow_html=True)
+            adc_d  = f"{row['Est ADC']:.1f} pts/day"    if pd.notna(row.get("Est ADC"))         else "No PUF data"
+            rev_d  = f"${row['Est Revenue ($k)']:.0f}k Medicare/yr" if pd.notna(row.get("Est Revenue ($k)")) else "No PUF data"
+            cahps_d= f"{row['CAHPS %']}%"               if pd.notna(row.get("CAHPS %"))          else "Not available"
 
-    # Signals
-    st.markdown("**Acquisition Signals**")
-    signals = row["Signals"]
-    if signals:
-        for sig in signals:
-            t = sig["type"]
-            icon = "🔥" if t == "hot" else "✓" if t == "positive" else "⚠️" if t == "warn" else "·" if t == "neutral" else "✗"
-            weight_str = f"+{sig['weight']}" if sig['weight'] > 0 else str(sig['weight'])
-            color_str = "#ef4444" if t in ("hot","negative") else "#22c55e" if t == "positive" else "#f59e0b" if t == "warn" else "#94a3b8"
-            st.markdown(f'<span style="color:{color_str}">{icon} {sig["label"]}</span> <span style="color:#374151;font-size:11px">({weight_str})</span>', unsafe_allow_html=True)
+            items=[
+                ("Ownership Type", row.get("Ownership Type","—")),
+                ("Independent?",   row.get("Independent","—")),
+                ("Certified",      row.get("Cert Year","—")),
+                ("CMS Stars",      f"{row['Stars']}★" if str(row['Stars']) not in ("—","nan","") else "No rating"),
+                ("HCI Score",      f"{row['HCI']} / 10" if str(row['HCI']) not in ("—","nan","") else "Not scored"),
+                ("Est. ADC",       adc_d),
+                ("Est. Medicare Revenue", rev_d),
+                ("CAHPS Family Rating",   cahps_d),
+            ]
+            cols = st.columns(4)
+            for i,(k,v) in enumerate(items):
+                with cols[i%4]:
+                    st.markdown(f'<div class="info-card"><div class="info-label">{k}</div><div class="info-value">{v}</div></div>',unsafe_allow_html=True)
+
+        with d2:
+            st.markdown(f"""
+            <div style="background:{col}18;border:2px solid {col};border-radius:12px;padding:24px 16px;text-align:center">
+              <div style="font-size:44px;font-weight:700;color:{col};line-height:1">{sc}</div>
+              <div style="font-size:10px;color:#475569;margin:4px 0 8px 0">out of 125</div>
+              <div style="font-size:16px;font-weight:700;color:{col}">{row['Tier']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:11px;font-weight:700;color:#475569;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px'>Acquisition Signals</div>", unsafe_allow_html=True)
+
+        for sig in row["Signals"]:
+            t=sig["type"]
+            icon  = "🔥" if t=="hot" else "✓" if t=="positive" else "⚠️" if t=="warn" else "✗" if t=="negative" else "·"
+            cstr  = "#ef4444" if t in ("hot","negative") else "#22c55e" if t=="positive" else "#f59e0b" if t=="warn" else "#64748b"
+            wstr  = f"+{sig['weight']}" if sig['weight']>0 else str(sig['weight'])
+            st.markdown(f"""
+            <div class="sig-row">
+              <span style="color:{cstr};font-size:14px;flex-shrink:0;width:16px">{icon}</span>
+              <span style="color:#cbd5e1;font-size:13px;flex:1">{sig['label']}</span>
+              <span style="color:#374151;font-size:11px;flex-shrink:0">{wstr} pts</span>
+            </div>
+            """, unsafe_allow_html=True)
