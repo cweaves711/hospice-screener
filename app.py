@@ -453,7 +453,7 @@ with ec1:
 
 # ── Session state ──────────────────────────────────────────────────────────────
 if "selected_provider" not in st.session_state:
-    st.session_state.selected_provider = df["Name"].iloc[0] if len(df) > 0 else None
+    st.session_state.selected_provider = None
 
 # ── Main Table ─────────────────────────────────────────────────────────────────
 def render_table(df_display):
@@ -476,7 +476,7 @@ def render_table(df_display):
         return f'<span style="background:#1e293b;border:1px solid #374151;color:#475569;border-radius:20px;padding:2px 8px;font-size:11px">{v}</span>'
 
     th = "padding:8px 12px;text-align:left;color:#475569;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1e293b;white-space:nowrap;background:#0a0d14"
-    headers = ["","Provider","State","City","Ownership","Indep?","Est.","Stars","HCI","ADC","Score","Tier"]
+    headers = ["Provider","State","City","Ownership","Indep?","Est.","Stars","HCI","ADC","Score","Tier"]
 
     rows_html = ""
     for i, (_, r) in enumerate(df_display.iterrows()):
@@ -492,21 +492,9 @@ def render_table(df_display):
         hci_raw = str(r['HCI']) if pd.notna(r.get('HCI')) else "—"
         hci_display = hci_raw if hci_raw not in ("—","nan","") else "—"
         adc_color = "#22c55e" if pd.notna(r.get("Est ADC")) and 10 <= r["Est ADC"] <= 50 else "#94a3b8"
-        name_esc = r['Name'].replace("'", "&#39;").replace('"', '&quot;')
-        is_selected = r['Name'] == st.session_state.get("selected_provider","")
-        row_border = f"border-left:3px solid #2563eb" if is_selected else "border-left:3px solid transparent"
 
         rows_html += f"""
-        <tr id="row-{i}" style="background:{bg};border-bottom:1px solid #0f172a;{row_border};cursor:pointer"
-            onmouseover="this.style.background='#1e293b'"
-            onmouseout="this.style.background='{bg}'"
-            onclick="document.getElementById('detail-btn-{i}').click()">
-          <td style="padding:6px 10px;width:32px">
-            <button id="detail-btn-{i}" data-name="{name_esc}"
-              style="background:#1e3a5f;border:1px solid #2563eb;color:#93c5fd;border-radius:4px;
-                     padding:2px 7px;font-size:10px;cursor:pointer;white-space:nowrap"
-              onclick="event.stopPropagation()">↓ Detail</button>
-          </td>
+        <tr style="background:{bg};border-bottom:1px solid #0f172a;{row_border}">
           <td style="padding:8px 12px;color:#f1f5f9;font-weight:600;font-size:13px">{r['Name']}</td>
           <td style="padding:8px 12px"><span style="background:#1e3a5f;color:#93c5fd;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">{r['State']}</span></td>
           <td style="padding:8px 12px;color:#64748b;font-size:12px">{r['City']}</td>
@@ -530,20 +518,12 @@ def render_table(df_display):
       </table>
     </div>
     <div style="font-size:10px;color:#374151;margin-top:6px;padding-left:2px">
-      Click any row or ↓ Detail to load provider below &nbsp;·&nbsp;
       Est. = cert year &nbsp;·&nbsp; HCI = Hospice Care Index (0–10) &nbsp;·&nbsp; ADC = avg daily census
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
 
-    # Hidden Streamlit buttons — one per row — triggered by JS onclick above
-    # We use a form trick: render buttons outside visible area, JS clicks them
-    st.markdown('<div style="display:none">', unsafe_allow_html=True)
-    for i, (_, r) in enumerate(df_display.iterrows()):
-        if st.button(r['Name'], key=f"_tbl_btn_{i}_{r['Name'][:20]}"):
-            st.session_state.selected_provider = r['Name']
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+
 
 render_table(df)
 
@@ -608,18 +588,20 @@ Maximum possible score is <strong style="color:#e2e8f0">125</strong>.
 
 # ── Provider Detail ────────────────────────────────────────────────────────────
 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-# Anchor target for scroll
-st.markdown('<div id="provider-detail"></div>', unsafe_allow_html=True)
-st.markdown("<div style='color:#f1f5f9;font-size:16px;font-weight:700;margin-bottom:10px'>🔍 Provider Detail</div>", unsafe_allow_html=True)
 
-if len(df)==0:
-    st.info("No providers match current filters.")
-else:
-    provider_names = df["Name"].tolist()
-    if st.session_state.selected_provider not in provider_names:
-        st.session_state.selected_provider = provider_names[0]
-    sel_name = st.session_state.selected_provider
-    if sel_name:
+# Search box to select a provider for detail view
+st.markdown("<div style='color:#f1f5f9;font-size:16px;font-weight:700;margin-bottom:8px'>🔍 Provider Detail</div>", unsafe_allow_html=True)
+
+provider_names = df["Name"].tolist() if len(df) > 0 else []
+search_options = ["— select a provider —"] + provider_names
+picked = st.selectbox("Search or select a provider", options=search_options, index=0, key="detail_select", label_visibility="collapsed")
+
+if picked != "— select a provider —":
+    st.session_state.selected_provider = picked
+
+sel_name = st.session_state.selected_provider
+if len(df) > 0 and sel_name and sel_name in provider_names:
+    if True:
         row = df[df["Name"]==sel_name].iloc[0]
         sc = row["Score"]; col = score_color(sc)
 
