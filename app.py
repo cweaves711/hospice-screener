@@ -494,7 +494,7 @@ def render_table(df_display):
         adc_color = "#22c55e" if pd.notna(r.get("Est ADC")) and 10 <= r["Est ADC"] <= 50 else "#94a3b8"
 
         rows_html += f"""
-        <tr style="background:{bg};border-bottom:1px solid #0f172a;{row_border}">
+        <tr style="background:{bg};border-bottom:1px solid #0f172a">
           <td style="padding:8px 12px;color:#f1f5f9;font-weight:600;font-size:13px">{r['Name']}</td>
           <td style="padding:8px 12px"><span style="background:#1e3a5f;color:#93c5fd;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">{r['State']}</span></td>
           <td style="padding:8px 12px;color:#64748b;font-size:12px">{r['City']}</td>
