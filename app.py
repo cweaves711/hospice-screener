@@ -440,42 +440,93 @@ with ec1:
     st.markdown(f"<div style='color:#475569;font-size:12px;padding-top:8px'>{len(df)} providers · sorted by score descending</div>",unsafe_allow_html=True)
 
 # ── Main Table ─────────────────────────────────────────────────────────────────
-st.dataframe(
-    df[["Name","State","City","Ownership Type","Independent","Cert Year","Stars","HCI","Est ADC","Score","Tier"]],
-    use_container_width=True,
-    height=500,
-    hide_index=True,
-    column_config={
-        "Name":         st.column_config.TextColumn("Provider Name", width="large"),
-        "State":        st.column_config.TextColumn("State", width="small"),
-        "City":         st.column_config.TextColumn("City"),
-        "Ownership Type": st.column_config.TextColumn("Ownership",
-                            help="Legal ownership type per CMS registration"),
-        "Independent":  st.column_config.TextColumn("Independent?",
-                            help="✓ Yes — CMS reports no chain affiliation\n"
-                                 "? Verify — CMS says independent but name matches a known chain pattern. Check before calling.\n"
-                                 "✗ Chain — CMS reports chain-affiliated"),
-        "Cert Year":    st.column_config.TextColumn("Est.",width="small",
-                            help="Year first certified by Medicare. Older = deeper referral network."),
-        "Stars":        st.column_config.TextColumn("Stars",width="small",
-                            help="CMS star rating (1–5★). Only populated for providers with 50+ patients.\n"
-                                 "Low stars may indicate distress or motivated seller.\n"
-                                 "Blank = too small to be rated."),
-        "HCI":          st.column_config.TextColumn("HCI",width="small",
-                            help="Hospice Care Index (0–10). CMS composite quality score.\n"
-                                 "Below 6 = operational challenges.\n"
-                                 "Blank = too small or too new to be scored."),
-        "Est ADC":      st.column_config.NumberColumn("Est. ADC",format="%.1f",
-                            help="Estimated Average Daily Census.\n"
-                                 "Calculated from Medicare service days ÷ 365.\n"
-                                 "Target range: 10–50 patients/day."),
-        "Score":        st.column_config.ProgressColumn("Score",min_value=0,max_value=125,format="%d",
-                            help="Acquisition attractiveness score (0–125).\n"
-                                 "🔥 HOT ≥70 · 🌤 WARM ≥45 · ❄️ COLD <45\n"
-                                 "See 'How Scoring Works' below for breakdown."),
-        "Tier":         st.column_config.TextColumn("Tier",width="small"),
-    }
-)
+def render_table(df_display):
+    def score_bar(s):
+        pct = min(s / 125 * 100, 100)
+        c = "#22c55e" if s >= 70 else "#f59e0b" if s >= 45 else "#475569"
+        return (f'<div style="display:flex;align-items:center;gap:6px">'
+                f'<div style="flex:1;background:#1e293b;border-radius:3px;height:6px">'
+                f'<div style="width:{pct}%;background:{c};height:6px;border-radius:3px"></div></div>'
+                f'<span style="color:{c};font-weight:700;font-size:12px;min-width:24px">{s}</span></div>')
+
+    def indep_badge(v):
+        if "Verify" in str(v):
+            return '<span style="color:#f59e0b;font-weight:700">? Verify</span>'
+        elif "Yes" in str(v):
+            return '<span style="color:#22c55e;font-weight:700">✓ Yes</span>'
+        return '<span style="color:#ef4444;font-weight:700">✗ Chain</span>'
+
+    def tier_badge(v):
+        if "HOT" in str(v):   return f'<span style="background:#14532d33;border:1px solid #22c55e;color:#22c55e;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">{v}</span>'
+        if "WARM" in str(v):  return f'<span style="background:#78350f33;border:1px solid #f59e0b;color:#f59e0b;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">{v}</span>'
+        return f'<span style="background:#1e293b;border:1px solid #374151;color:#475569;border-radius:20px;padding:2px 8px;font-size:11px">{v}</span>'
+
+    def own_flag(row):
+        flag = row.get("Ownership Flag","")
+        if pd.notna(flag) and flag:
+            return f'<span title="{flag}" style="cursor:help">⚠️</span> {row["Name"]}'
+        return row["Name"]
+
+    headers = ["Provider","State","City","Ownership","Independent?","Est.","Stars","HCI","Est. ADC","Score","Tier"]
+    th_style = "padding:9px 12px;text-align:left;color:#475569;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1e293b;white-space:nowrap;background:#0a0d14"
+
+    rows_html = ""
+    for i, (_, r) in enumerate(df_display.iterrows()):
+        bg = "#0f1520" if i % 2 == 0 else "#0c0f18"
+        adc = f"{r['Est ADC']:.1f}" if pd.notna(r.get("Est ADC")) else "—"
+
+        # Compute stars display safely
+        stars_raw = str(r['Stars']) if pd.notna(r.get('Stars')) else "—"
+        try:
+            stars_num = float(stars_raw)
+            stars_display = f"{stars_raw}★"
+            stars_color = "#ef4444" if stars_num <= 2 else "#22c55e" if stars_num >= 4 else "#94a3b8"
+        except:
+            stars_display = "—"
+            stars_color = "#374151"
+
+        # Compute HCI display safely
+        hci_raw = str(r['HCI']) if pd.notna(r.get('HCI')) else "—"
+        hci_display = hci_raw if hci_raw not in ("—","nan","") else "—"
+
+        # ADC color
+        adc_color = "#22c55e" if pd.notna(r.get("Est ADC")) and 10 <= r["Est ADC"] <= 50 else "#94a3b8"
+
+        rows_html += f"""
+        <tr style="background:{bg};border-bottom:1px solid #0f172a"
+            onmouseover="this.style.background='#1e293b'"
+            onmouseout="this.style.background='{bg}'">
+          <td style="padding:9px 12px;color:#f1f5f9;font-weight:600;font-size:13px">{own_flag(r)}</td>
+          <td style="padding:9px 12px"><span style="background:#1e3a5f;color:#93c5fd;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">{r['State']}</span></td>
+          <td style="padding:9px 12px;color:#64748b;font-size:12px">{r['City']}</td>
+          <td style="padding:9px 12px;color:#64748b;font-size:11px">{r['Ownership Type'] or '—'}</td>
+          <td style="padding:9px 12px">{indep_badge(r['Independent'])}</td>
+          <td style="padding:9px 12px;color:#64748b;font-size:12px">{r['Cert Year'] or '—'}</td>
+          <td style="padding:9px 12px;color:{stars_color};font-size:12px">{stars_display}</td>
+          <td style="padding:9px 12px;color:#64748b;font-size:12px">{hci_display}</td>
+          <td style="padding:9px 12px;color:{adc_color};font-size:12px">{adc}</td>
+          <td style="padding:9px 12px;min-width:130px">{score_bar(r['Score'])}</td>
+          <td style="padding:9px 12px">{tier_badge(r['Tier'])}</td>
+        </tr>"""
+
+    html = f"""
+    <div style="overflow-x:auto;border:1px solid #1e293b;border-radius:8px;max-height:520px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead style="position:sticky;top:0;z-index:10">
+          <tr>
+            {''.join(f'<th style="{th_style}">{h}</th>' for h in headers)}
+          </tr>
+        </thead>
+        <tbody>{rows_html}</tbody>
+      </table>
+    </div>
+    <div style="font-size:10px;color:#374151;margin-top:6px;padding-left:2px">
+      ⚠️ = ownership flag — hover for detail &nbsp;·&nbsp; Est. = Medicare certification year &nbsp;·&nbsp; HCI = Hospice Care Index (0–10) &nbsp;·&nbsp; Est. ADC = avg daily census from Medicare service days
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+render_table(df)
 
 # ── Scoring Reference ──────────────────────────────────────────────────────────
 with st.expander("📊  How Scoring Works", expanded=False):
