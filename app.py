@@ -451,91 +451,45 @@ with ec2:
 with ec1:
     st.markdown(f"<div style='color:#475569;font-size:12px;padding-top:8px'>{len(df)} providers · sorted by score descending</div>",unsafe_allow_html=True)
 
-# ── Session state ──────────────────────────────────────────────────────────────
-if "selected_provider" not in st.session_state:
-    st.session_state.selected_provider = None
-
 # ── Main Table ─────────────────────────────────────────────────────────────────
-def render_table(df_display):
-    def score_bar(s):
-        pct = min(s / 125 * 100, 100)
-        c = "#22c55e" if s >= 70 else "#f59e0b" if s >= 45 else "#475569"
-        return (f'<div style="display:flex;align-items:center;gap:6px">'
-                f'<div style="flex:1;background:#1e293b;border-radius:3px;height:6px">'
-                f'<div style="width:{pct}%;background:{c};height:6px;border-radius:3px"></div></div>'
-                f'<span style="color:{c};font-weight:700;font-size:12px;min-width:24px">{s}</span></div>')
+# Build clean display dataframe
+tbl = df[["Name","State","City","Ownership Type","Independent","Cert Year",
+          "Stars","HCI","Est ADC","Score","Tier"]].copy()
+tbl = tbl.rename(columns={
+    "Ownership Type": "Ownership",
+    "Cert Year": "Est.",
+    "Est ADC": "ADC",
+})
 
-    def indep_badge(v):
-        if "Yes" in str(v):
-            return '<span style="color:#22c55e;font-weight:700">✓ Yes</span>'
-        return '<span style="color:#ef4444;font-weight:700">✗ Chain</span>'
+st.caption("Click a row to load provider detail below")
 
-    def tier_badge(v):
-        if "HOT" in str(v):  return f'<span style="background:#14532d33;border:1px solid #22c55e;color:#22c55e;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">{v}</span>'
-        if "WARM" in str(v): return f'<span style="background:#78350f33;border:1px solid #f59e0b;color:#f59e0b;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">{v}</span>'
-        return f'<span style="background:#1e293b;border:1px solid #374151;color:#475569;border-radius:20px;padding:2px 8px;font-size:11px">{v}</span>'
-
-    th = "padding:8px 12px;text-align:left;color:#475569;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1e293b;white-space:nowrap;background:#0a0d14"
-    headers = ["Provider","State","City","Ownership","Indep?","Est.","Stars","HCI","ADC","Score","Tier"]
-    header_html = "".join(f"<th style='{th}'>{h}</th>" for h in headers)
-
-    rows_html = ""
-    for i, (_, r) in enumerate(df_display.iterrows()):
-        bg = "#0f1520" if i % 2 == 0 else "#0c0f18"
-        adc = f"{r['Est ADC']:.1f}" if pd.notna(r.get("Est ADC")) else "—"
-        stars_raw = str(r['Stars']) if pd.notna(r.get('Stars')) else "—"
-        try:
-            sn = float(stars_raw)
-            stars_display = f"{stars_raw}★"
-            stars_color = "#ef4444" if sn <= 2 else "#22c55e" if sn >= 4 else "#94a3b8"
-        except:
-            stars_display = "—"; stars_color = "#374151"
-        hci_raw = str(r['HCI']) if pd.notna(r.get('HCI')) else "—"
-        hci_display = hci_raw if hci_raw not in ("—","nan","") else "—"
-        adc_color = "#22c55e" if pd.notna(r.get("Est ADC")) and 10 <= r["Est ADC"] <= 50 else "#94a3b8"
-        name     = r["Name"]
-        state    = r["State"]
-        city     = r["City"]
-        own      = r["Ownership Type"] or "—"
-        indep    = indep_badge(r["Independent"])
-        cert     = r["Cert Year"] or "—"
-        bar      = score_bar(r["Score"])
-        tier     = tier_badge(r["Tier"])
-
-        rows_html += (
-            f'<tr style="background:{bg};border-bottom:1px solid #0f172a">'
-            f'<td style="padding:8px 12px;color:#f1f5f9;font-weight:600;font-size:13px">{name}</td>'
-            f'<td style="padding:8px 12px"><span style="background:#1e3a5f;color:#93c5fd;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">{state}</span></td>'
-            f'<td style="padding:8px 12px;color:#64748b;font-size:12px">{city}</td>'
-            f'<td style="padding:8px 12px;color:#64748b;font-size:11px">{own}</td>'
-            f'<td style="padding:8px 12px">{indep}</td>'
-            f'<td style="padding:8px 12px;color:#64748b;font-size:12px">{cert}</td>'
-            f'<td style="padding:8px 12px;color:{stars_color};font-size:12px">{stars_display}</td>'
-            f'<td style="padding:8px 12px;color:#64748b;font-size:12px">{hci_display}</td>'
-            f'<td style="padding:8px 12px;color:{adc_color};font-size:12px">{adc}</td>'
-            f'<td style="padding:8px 12px;min-width:130px">{bar}</td>'
-            f'<td style="padding:8px 12px">{tier}</td>'
-            f'</tr>'
-        )
-
-    html = f"""
-    <div style="overflow-x:auto;border:1px solid #1e293b;border-radius:8px;max-height:520px;overflow-y:auto" id="main-table">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead style="position:sticky;top:0;z-index:10">
-          <tr>{header_html}</tr>
-        </thead>
-        <tbody>{rows_html}</tbody>
-      </table>
-    </div>
-    <div style="font-size:10px;color:#374151;margin-top:6px;padding-left:2px">
-      Est. = cert year &nbsp;·&nbsp; HCI = Hospice Care Index (0–10) &nbsp;·&nbsp; ADC = avg daily census
-    </div>
-    """
-    st.markdown(html, unsafe_allow_html=True)
-
-
-
-render_table(df)
+selection = st.dataframe(
+    tbl,
+    use_container_width=True,
+    height=500,
+    hide_index=True,
+    on_select="rerun",
+    selection_mode="single-row",
+    column_config={
+        "Name":       st.column_config.TextColumn("Provider", width="large"),
+        "State":      st.column_config.TextColumn("State", width="small"),
+        "City":       st.column_config.TextColumn("City"),
+        "Ownership":  st.column_config.TextColumn("Ownership"),
+        "Independent":st.column_config.TextColumn("Indep?", width="small",
+                          help="✓ Yes = no chain affiliation per CMS\n✗ Chain = CMS reports chain-affiliated"),
+        "Est.":       st.column_config.TextColumn("Est.", width="small",
+                          help="Year first certified by Medicare"),
+        "Stars":      st.column_config.TextColumn("Stars", width="small",
+                          help="CMS star rating 1–5. Blank = too small to rate."),
+        "HCI":        st.column_config.TextColumn("HCI", width="small",
+                          help="Hospice Care Index 0–10. Blank = too small to score."),
+        "ADC":        st.column_config.NumberColumn("ADC", format="%.1f",
+                          help="Est. avg daily census (Medicare service days ÷ 365). Target: 10–50."),
+        "Score":      st.column_config.ProgressColumn("Score", min_value=0, max_value=125, format="%d",
+                          help="Acquisition score 0–125. HOT ≥70 · WARM ≥45"),
+        "Tier":       st.column_config.TextColumn("Tier", width="small"),
+    }
+)
 
 # ── Scoring Reference ──────────────────────────────────────────────────────────
 with st.expander("📊  How Scoring Works", expanded=False):
@@ -597,77 +551,83 @@ Maximum possible score is <strong style="color:#e2e8f0">125</strong>.
 """, unsafe_allow_html=True)
 
 # ── Provider Detail ────────────────────────────────────────────────────────────
-st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+selected_rows = selection.selection.rows if selection.selection.rows else []
 
-# Search box to select a provider for detail view
-st.markdown("<div style='color:#f1f5f9;font-size:16px;font-weight:700;margin-bottom:8px'>🔍 Provider Detail</div>", unsafe_allow_html=True)
+if not selected_rows:
+    st.markdown("""
+    <div style="background:#0f1520;border:1px dashed #1e293b;border-radius:8px;
+                padding:24px;text-align:center;color:#374151;font-size:13px;margin-top:8px">
+      Click any row above to view provider detail
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    row = df.iloc[selected_rows[0]]
+    sc  = row["Score"]
+    col = score_color(sc)
 
-provider_names = df["Name"].tolist() if len(df) > 0 else []
-search_options = ["— select a provider —"] + provider_names
-picked = st.selectbox("Search or select a provider", options=search_options, index=0, key="detail_select", label_visibility="collapsed")
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-if picked != "— select a provider —":
-    st.session_state.selected_provider = picked
+    d1, d2 = st.columns([3, 1])
+    with d1:
+        st.markdown(f"""
+        <div style="background:#0f1520;border:1px solid #1e293b;border-radius:10px;padding:16px 20px;margin-bottom:12px">
+          <div style="font-size:18px;font-weight:700;color:#f1f5f9">{row['Name']}</div>
+          <div style="font-size:12px;color:#475569;margin-top:3px">
+            {row['City']}, {row['State']} &nbsp;·&nbsp;
+            CCN: <code style="background:#1e293b;color:#94a3b8;padding:1px 6px;border-radius:3px">{row['CCN']}</code>
+            &nbsp;·&nbsp; {row['Phone']}
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-sel_name = st.session_state.selected_provider
-if len(df) > 0 and sel_name and sel_name in provider_names:
-    if True:
-        row = df[df["Name"]==sel_name].iloc[0]
-        sc = row["Score"]; col = score_color(sc)
+        adc_d   = f"{row['Est ADC']:.1f} pts/day" if pd.notna(row.get("Est ADC")) else "No PUF data"
+        rev_d   = f"${row['Est Revenue ($k)']:.0f}k Medicare/yr" if pd.notna(row.get("Est Revenue ($k)")) else "No PUF data"
+        cahps_d = f"{row['CAHPS %']}%" if pd.notna(row.get("CAHPS %")) else "Not available"
+        stars_v = f"{row['Stars']}★" if str(row['Stars']) not in ("—","nan","") else "No rating"
+        hci_v   = f"{row['HCI']} / 10" if str(row['HCI']) not in ("—","nan","") else "Not scored"
 
-        d1,d2 = st.columns([3,1])
-        with d1:
-            st.markdown(f"""
-            <div style="background:#0f1520;border:1px solid #1e293b;border-radius:10px;padding:16px 20px;margin-bottom:10px">
-              <div style="font-size:18px;font-weight:700;color:#f1f5f9">{row['Name']}</div>
-              <div style="font-size:12px;color:#475569;margin-top:3px">
-                {row['City']}, {row['State']} &nbsp;·&nbsp;
-                CCN: <code style="background:#1e293b;color:#94a3b8;padding:1px 6px;border-radius:3px">{row['CCN']}</code>
-                &nbsp;·&nbsp; {row['Phone']}
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
+        items = [
+            ("Ownership Type",        row.get("Ownership Type", "—")),
+            ("Independent?",          row.get("Independent", "—")),
+            ("Certified",             row.get("Cert Year", "—")),
+            ("CMS Stars",             stars_v),
+            ("HCI Score",             hci_v),
+            ("Est. ADC",              adc_d),
+            ("Est. Medicare Revenue", rev_d),
+            ("CAHPS Family Rating",   cahps_d),
+        ]
+        cols = st.columns(4)
+        for i, (k, v) in enumerate(items):
+            with cols[i % 4]:
+                st.markdown(
+                    f'<div class="info-card"><div class="info-label">{k}</div>'
+                    f'<div class="info-value">{v}</div></div>',
+                    unsafe_allow_html=True
+                )
 
-            adc_d  = f"{row['Est ADC']:.1f} pts/day"    if pd.notna(row.get("Est ADC"))         else "No PUF data"
-            rev_d  = f"${row['Est Revenue ($k)']:.0f}k Medicare/yr" if pd.notna(row.get("Est Revenue ($k)")) else "No PUF data"
-            cahps_d= f"{row['CAHPS %']}%"               if pd.notna(row.get("CAHPS %"))          else "Not available"
+    with d2:
+        st.markdown(f"""
+        <div style="background:{col}18;border:2px solid {col};border-radius:12px;
+                    padding:24px 16px;text-align:center">
+          <div style="font-size:44px;font-weight:700;color:{col};line-height:1">{sc}</div>
+          <div style="font-size:10px;color:#475569;margin:4px 0 8px 0">out of 125</div>
+          <div style="font-size:16px;font-weight:700;color:{col}">{row['Tier']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-            items=[
-                ("Ownership Type", row.get("Ownership Type","—")),
-                ("Independent?",   row.get("Independent","—")),
-                ("Certified",      row.get("Cert Year","—")),
-                ("CMS Stars",      f"{row['Stars']}★" if str(row['Stars']) not in ("—","nan","") else "No rating"),
-                ("HCI Score",      f"{row['HCI']} / 10" if str(row['HCI']) not in ("—","nan","") else "Not scored"),
-                ("Est. ADC",       adc_d),
-                ("Est. Medicare Revenue", rev_d),
-                ("CAHPS Family Rating",   cahps_d),
-            ]
-            cols = st.columns(4)
-            for i,(k,v) in enumerate(items):
-                with cols[i%4]:
-                    st.markdown(f'<div class="info-card"><div class="info-label">{k}</div><div class="info-value">{v}</div></div>',unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px;font-weight:700;color:#475569;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px'>Acquisition Signals</div>", unsafe_allow_html=True)
 
-        with d2:
-            st.markdown(f"""
-            <div style="background:{col}18;border:2px solid {col};border-radius:12px;padding:24px 16px;text-align:center">
-              <div style="font-size:44px;font-weight:700;color:{col};line-height:1">{sc}</div>
-              <div style="font-size:10px;color:#475569;margin:4px 0 8px 0">out of 125</div>
-              <div style="font-size:16px;font-weight:700;color:{col}">{row['Tier']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size:11px;font-weight:700;color:#475569;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px'>Acquisition Signals</div>", unsafe_allow_html=True)
-
-        for sig in row["Signals"]:
-            t=sig["type"]
-            icon  = "🔥" if t=="hot" else "✓" if t=="positive" else "⚠️" if t=="warn" else "✗" if t=="negative" else "·"
-            cstr  = "#ef4444" if t in ("hot","negative") else "#22c55e" if t=="positive" else "#f59e0b" if t=="warn" else "#64748b"
-            wstr  = f"+{sig['weight']}" if sig['weight']>0 else str(sig['weight'])
-            st.markdown(f"""
-            <div class="sig-row">
-              <span style="color:{cstr};font-size:14px;flex-shrink:0;width:16px">{icon}</span>
-              <span style="color:#cbd5e1;font-size:13px;flex:1">{sig['label']}</span>
-              <span style="color:#374151;font-size:11px;flex-shrink:0">{wstr} pts</span>
-            </div>
-            """, unsafe_allow_html=True)
+    for sig in row["Signals"]:
+        t    = sig["type"]
+        icon = "🔥" if t=="hot" else "✓" if t=="positive" else "⚠️" if t=="warn" else "✗" if t=="negative" else "·"
+        cstr = "#ef4444" if t in ("hot","negative") else "#22c55e" if t=="positive" else "#f59e0b" if t=="warn" else "#64748b"
+        wstr = f"+{sig['weight']}" if sig['weight'] > 0 else str(sig['weight'])
+        st.markdown(
+            f'<div class="sig-row">'
+            f'<span style="color:{cstr};font-size:14px;flex-shrink:0;width:16px">{icon}</span>'
+            f'<span style="color:#cbd5e1;font-size:13px;flex:1">{sig["label"]}</span>'
+            f'<span style="color:#374151;font-size:11px;flex-shrink:0">{wstr} pts</span>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
