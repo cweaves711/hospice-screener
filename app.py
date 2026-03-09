@@ -447,14 +447,20 @@ ec1,ec2 = st.columns([9,1])
 with ec2:
     export_df = df.drop(columns=["Signals","Has PUF","Has CAHPS"],errors="ignore")
     st.download_button("⬇ Export CSV", export_df.to_csv(index=False).encode(),
-                       "hospice_targets.csv","text/csv",use_container_width=True)
+                       "hospice_targets.csv","text/csv")
 with ec1:
     st.markdown(f"<div style='color:#475569;font-size:12px;padding-top:8px'>{len(df)} providers · sorted by score descending</div>",unsafe_allow_html=True)
 
 # ── Main Table ─────────────────────────────────────────────────────────────────
-# Build clean display dataframe
-tbl = df[["Name","State","City","Ownership Type","Independent","Cert Year",
-          "Stars","HCI","Est ADC","Score","Tier"]].copy()
+if df.empty:
+    st.warning("No providers match the current filters. Try relaxing the state selection or tier filter.")
+    st.stop()
+
+# Build clean display dataframe — only include columns that actually exist
+want_cols = ["Name","State","City","Ownership Type","Independent","Cert Year",
+             "Stars","HCI","Est ADC","Score","Tier"]
+avail_cols = [c for c in want_cols if c in df.columns]
+tbl = df[avail_cols].copy()
 tbl = tbl.rename(columns={
     "Ownership Type": "Ownership",
     "Cert Year": "Est.",
@@ -463,33 +469,34 @@ tbl = tbl.rename(columns={
 
 st.caption("Click a row to load provider detail below")
 
-selection = st.dataframe(
-    tbl,
-    use_container_width=True,
-    height=500,
-    hide_index=True,
-    on_select="rerun",
-    selection_mode="single-row",
-    column_config={
-        "Name":       st.column_config.TextColumn("Provider", width="large"),
-        "State":      st.column_config.TextColumn("State", width="small"),
-        "City":       st.column_config.TextColumn("City"),
-        "Ownership":  st.column_config.TextColumn("Ownership"),
-        "Independent":st.column_config.TextColumn("Indep?", width="small",
-                          help="✓ Yes = no chain affiliation per CMS\n✗ Chain = CMS reports chain-affiliated"),
-        "Est.":       st.column_config.TextColumn("Est.", width="small",
-                          help="Year first certified by Medicare"),
-        "Stars":      st.column_config.TextColumn("Stars", width="small",
-                          help="CMS star rating 1–5. Blank = too small to rate."),
-        "HCI":        st.column_config.TextColumn("HCI", width="small",
-                          help="Hospice Care Index 0–10. Blank = too small to score."),
-        "ADC":        st.column_config.NumberColumn("ADC", format="%.1f",
-                          help="Est. avg daily census (Medicare service days ÷ 365). Target: 10–50."),
-        "Score":      st.column_config.ProgressColumn("Score", min_value=0, max_value=125, format="%d",
-                          help="Acquisition score 0–125. HOT ≥70 · WARM ≥45"),
-        "Tier":       st.column_config.TextColumn("Tier", width="small"),
-    }
-)
+# Build column config only for columns that exist in tbl
+col_cfg = {}
+if "Name"        in tbl.columns: col_cfg["Name"]        = st.column_config.TextColumn("Provider", width="large")
+if "State"       in tbl.columns: col_cfg["State"]       = st.column_config.TextColumn("State", width="small")
+if "City"        in tbl.columns: col_cfg["City"]        = st.column_config.TextColumn("City")
+if "Ownership"   in tbl.columns: col_cfg["Ownership"]   = st.column_config.TextColumn("Ownership")
+if "Independent" in tbl.columns: col_cfg["Independent"] = st.column_config.TextColumn("Indep?", width="small")
+if "Est."        in tbl.columns: col_cfg["Est."]        = st.column_config.TextColumn("Est.", width="small")
+if "Stars"       in tbl.columns: col_cfg["Stars"]       = st.column_config.TextColumn("Stars", width="small")
+if "HCI"         in tbl.columns: col_cfg["HCI"]         = st.column_config.TextColumn("HCI", width="small")
+if "ADC"         in tbl.columns: col_cfg["ADC"]         = st.column_config.NumberColumn("ADC", format="%.1f")
+if "Score"       in tbl.columns: col_cfg["Score"]       = st.column_config.ProgressColumn("Score", min_value=0, max_value=125, format="%d")
+if "Tier"        in tbl.columns: col_cfg["Tier"]        = st.column_config.TextColumn("Tier", width="small")
+
+try:
+    selection = st.dataframe(
+        tbl,
+        width="stretch",
+        height=500,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config=col_cfg,
+    )
+except Exception:
+    # Fallback for older Streamlit versions that don't support on_select
+    st.dataframe(tbl, width="stretch", height=500, hide_index=True, column_config=col_cfg)
+    selection = None
 
 # ── Scoring Reference ──────────────────────────────────────────────────────────
 with st.expander("📊  How Scoring Works", expanded=False):
@@ -551,7 +558,10 @@ Maximum possible score is <strong style="color:#e2e8f0">125</strong>.
 """, unsafe_allow_html=True)
 
 # ── Provider Detail ────────────────────────────────────────────────────────────
-selected_rows = selection.selection.rows if selection.selection.rows else []
+try:
+    selected_rows = selection.selection.rows if (selection and selection.selection.rows) else []
+except Exception:
+    selected_rows = []
 
 if not selected_rows:
     st.markdown("""
