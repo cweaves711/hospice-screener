@@ -153,7 +153,7 @@ def score_target(gen_row, prov_row, puf_row, cahps_row):
     if 1<=stars<=2:  score+=25; signals.append({"label":f"Low stars ({stars}★) — distress signal","type":"hot","weight":25})
     elif stars==3:   score+=10; signals.append({"label":"Average rating (3★) — improvement upside","type":"neutral","weight":10})
     elif stars>=4:   score+=15; signals.append({"label":f"High quality ({stars}★) — premium asset","type":"positive","weight":15})
-    else:            score+=12; signals.append({"label":"No star rating — below survey threshold","type":"neutral","weight":12})
+    else:            signals.append({"label":"No star rating — unscored (too small or data pending)","type":"neutral","weight":0})
 
     hci = 0
     src = prov_row if prov_row is not None else gen_row
@@ -164,7 +164,7 @@ def score_target(gen_row, prov_row, puf_row, cahps_row):
     if 1<=hci<6:   score+=20; signals.append({"label":f"Low HCI ({hci}/10) — operational challenges","type":"hot","weight":20})
     elif 6<=hci<8: score+=8;  signals.append({"label":f"Average HCI ({hci}/10)","type":"neutral","weight":8})
     elif hci>=8:   score+=5;  signals.append({"label":f"Strong HCI ({hci}/10)","type":"positive","weight":5})
-    else:          score+=10; signals.append({"label":"No HCI score — likely small/new","type":"neutral","weight":10})
+    else:          signals.append({"label":"No HCI score — unscored (too small or data pending)","type":"neutral","weight":0})
 
     adc=0; revenue=0; benes=0
     if puf_row is not None:
@@ -410,13 +410,11 @@ table_html = f"""
 </table>
 </div>
 <script>
-function selectProvider(ccn) {{
-    // Use Streamlit's setComponentValue via query param trick
+function selectProvider(ccn, name) {{
+    // Set query param and reload — Streamlit will read it on rerun
     const url = new URL(window.parent.location.href);
-    url.searchParams.set('ccn', ccn);
-    window.parent.history.pushState({{}}, '', url);
-    // Also dispatch a custom event that Streamlit can pick up
-    window.parent.postMessage({{type:'streamlit:setComponentValue', ccn: ccn}}, '*');
+    url.searchParams.set('sel', ccn);
+    window.parent.location.href = url.toString();
 }}
 </script>
 """
@@ -424,63 +422,76 @@ function selectProvider(ccn) {{
 st.markdown(table_html, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PROVIDER DETAIL — via selectbox (hidden behind name input)
+# PROVIDER DETAIL — driven by query param (set when row is clicked)
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown("<div style='height:12px'></div>",unsafe_allow_html=True)
-st.markdown("<div style='color:#475569;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px'>📋 Provider Detail</div>",unsafe_allow_html=True)
+st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-name_input = st.text_input("Type provider name to load detail","",placeholder="Start typing a name...",label_visibility="collapsed",key="detail_search")
+# Read CCN from query params (set by table row click)
+qp = st.query_params
+clicked_ccn = qp.get("sel", None)
 
+# Also allow manual text search
+st.markdown("<div style='color:#475569;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px'>📋 Provider Detail — click a row above, or type a name below</div>", unsafe_allow_html=True)
+name_input = st.text_input("Provider name", "", placeholder="Start typing a name...", label_visibility="collapsed", key="detail_search")
+
+# Resolve which provider to show: text search takes priority, then click
+row = None
 if name_input.strip():
-    matched = df[df["Name"].str.contains(name_input.strip(),case=False,na=False)]
-    if matched.empty:
-        st.markdown("<div style='color:#475569;font-size:12px'>No match found.</div>",unsafe_allow_html=True)
-    else:
-        if len(matched)>1:
-            chosen = st.selectbox("Select:",matched["Name"].tolist(),key="detail_pick")
-            row = matched[matched["Name"]==chosen].iloc[0]
+    matched = df[df["Name"].str.contains(name_input.strip(), case=False, na=False)]
+    if not matched.empty:
+        if len(matched) > 1:
+            chosen = st.selectbox("Multiple matches:", matched["Name"].tolist(), key="detail_pick")
+            row = matched[matched["Name"] == chosen].iloc[0]
         else:
             row = matched.iloc[0]
+    else:
+        st.markdown("<div style='color:#475569;font-size:12px'>No match found.</div>", unsafe_allow_html=True)
+elif clicked_ccn:
+    matched = df[df["CCN"] == clicked_ccn]
+    if not matched.empty:
+        row = matched.iloc[0]
 
-        sc = row["Score"]; col = score_color(sc)
-        d1,d2 = st.columns([3,1])
-        with d1:
-            st.markdown(f"""<div style='background:#0f1520;border:1px solid #1e293b;border-radius:10px;padding:16px 20px;margin-bottom:12px'>
+# Render detail card if we have a row
+if row is not None:
+    sc = row["Score"]; col = score_color(sc)
+    d1,d2 = st.columns([3,1])
+    with d1:
+        st.markdown(f"""<div style='background:#0f1520;border:1px solid #1e293b;border-radius:10px;padding:16px 20px;margin-bottom:12px'>
 <div style='font-size:18px;font-weight:700;color:#f1f5f9'>{row["Name"]}</div>
 <div style='font-size:12px;color:#475569;margin-top:3px'>{row["City"]}, {row["State"]} &nbsp;·&nbsp; CCN: <code style='background:#1e293b;color:#94a3b8;padding:1px 6px;border-radius:3px'>{row["CCN"]}</code> &nbsp;·&nbsp; {row["Phone"]}</div>
-</div>""",unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
-            adc_d   = f"{row['Est ADC']:.1f} pts/day"               if pd.notna(row.get("Est ADC"))          else "No PUF data"
-            rev_d   = f"${row['Est Revenue ($k)']:.0f}k Medicare/yr" if pd.notna(row.get("Est Revenue ($k)")) else "No PUF data"
-            cahps_d = f"{row['CAHPS %']}%"                           if pd.notna(row.get("CAHPS %"))           else "Not available"
-            stars_v = f"{row['Stars']}★" if str(row['Stars']) not in ("—","nan","") else "No rating"
-            hci_v   = f"{row['HCI']} / 10" if str(row['HCI']) not in ("—","nan","") else "Not scored"
+        adc_d   = f"{row['Est ADC']:.1f} pts/day"               if pd.notna(row.get("Est ADC"))          else "No PUF data"
+        rev_d   = f"${row['Est Revenue ($k)']:.0f}k Medicare/yr" if pd.notna(row.get("Est Revenue ($k)")) else "No PUF data"
+        cahps_d = f"{row['CAHPS %']}%"                           if pd.notna(row.get("CAHPS %"))           else "Not available"
+        stars_v = f"{row['Stars']}★" if str(row['Stars']) not in ("—","nan","") else "No rating"
+        hci_v   = f"{row['HCI']} / 10" if str(row['HCI']) not in ("—","nan","") else "Not scored"
 
-            items=[("Ownership",row.get("Ownership Type","—")),("Independent?",row.get("Independent","—")),
-                   ("Certified",row.get("Cert Year","—")),("Stars",stars_v),("HCI",hci_v),
-                   ("Est. ADC",adc_d),("Medicare Rev.",rev_d),("CAHPS",cahps_d)]
-            ic=st.columns(4)
-            for idx,(k,v) in enumerate(items):
-                with ic[idx%4]:
-                    st.markdown(f'<div class="info-card"><div class="info-label">{k}</div><div class="info-value">{v}</div></div>',unsafe_allow_html=True)
+        items=[("Ownership",row.get("Ownership Type","—")),("Independent?",row.get("Independent","—")),
+               ("Certified",row.get("Cert Year","—")),("Stars",stars_v),("HCI",hci_v),
+               ("Est. ADC",adc_d),("Medicare Rev.",rev_d),("CAHPS",cahps_d)]
+        ic=st.columns(4)
+        for idx,(k,v) in enumerate(items):
+            with ic[idx%4]:
+                st.markdown(f'<div class="info-card"><div class="info-label">{k}</div><div class="info-value">{v}</div></div>', unsafe_allow_html=True)
 
-        with d2:
-            st.markdown(f"""<div style='background:{col}18;border:2px solid {col};border-radius:12px;padding:24px 16px;text-align:center'>
+    with d2:
+        st.markdown(f"""<div style='background:{col}18;border:2px solid {col};border-radius:12px;padding:24px 16px;text-align:center'>
 <div style='font-size:44px;font-weight:700;color:{col};line-height:1'>{sc}</div>
 <div style='font-size:10px;color:#475569;margin:4px 0 8px 0'>out of 125</div>
 <div style='font-size:16px;font-weight:700;color:{col}'>{row["Tier"]}</div>
-</div>""",unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
-        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
-        st.markdown("<div style='font-size:11px;font-weight:700;color:#475569;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px'>Acquisition Signals</div>",unsafe_allow_html=True)
-        for sig in row["Signals"]:
-            t=sig["type"]
-            icon="🔥" if t=="hot" else "✓" if t=="positive" else "⚠️" if t=="warn" else "✗" if t=="negative" else "·"
-            cstr="#ef4444" if t in ("hot","negative") else "#22c55e" if t=="positive" else "#f59e0b" if t=="warn" else "#64748b"
-            wstr=f"+{sig['weight']}" if sig['weight']>0 else str(sig['weight'])
-            st.markdown(f'<div class="sig-row"><span style="color:{cstr};font-size:14px;flex-shrink:0;width:16px">{icon}</span><span style="color:#cbd5e1;font-size:13px;flex:1">{sig["label"]}</span><span style="color:#374151;font-size:11px;flex-shrink:0">{wstr} pts</span></div>',unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px;font-weight:700;color:#475569;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px'>Acquisition Signals</div>", unsafe_allow_html=True)
+    for sig in row["Signals"]:
+        t=sig["type"]
+        icon="🔥" if t=="hot" else "✓" if t=="positive" else "⚠️" if t=="warn" else "✗" if t=="negative" else "·"
+        cstr="#ef4444" if t in ("hot","negative") else "#22c55e" if t=="positive" else "#f59e0b" if t=="warn" else "#64748b"
+        wstr=f"+{sig['weight']}" if sig['weight']>0 else str(sig['weight'])
+        st.markdown(f'<div class="sig-row"><span style="color:{cstr};font-size:14px;flex-shrink:0;width:16px">{icon}</span><span style="color:#cbd5e1;font-size:13px;flex:1">{sig["label"]}</span><span style="color:#374151;font-size:11px;flex-shrink:0">{wstr} pts</span></div>', unsafe_allow_html=True)
 else:
-    st.markdown('<div style="background:#0f1520;border:1px dashed #1e293b;border-radius:8px;padding:20px;text-align:center;color:#374151;font-size:13px">Type a provider name above to view detail</div>',unsafe_allow_html=True)
+    st.markdown('<div style="background:#0f1520;border:1px dashed #1e293b;border-radius:8px;padding:20px;text-align:center;color:#374151;font-size:13px">Click a provider name in the table above, or type a name to view detail</div>', unsafe_allow_html=True)
 
 with st.expander("📊  How Scoring Works",expanded=False):
     st.markdown("""<div style='color:#94a3b8;font-size:13px;padding:4px 0 12px 0'>
