@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import io
@@ -370,7 +371,7 @@ if df.empty:
     st.warning("No providers match the current filters."); st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HTML TABLE — pure HTML, no st.dataframe
+# TABLE via components.html — enables click → Streamlit communication
 # ══════════════════════════════════════════════════════════════════════════════
 rows_html = ""
 for i, r in df.iterrows():
@@ -384,11 +385,11 @@ for i, r in df.iterrows():
     adc_str = f"{r['Est ADC']:.1f}" if pd.notna(r.get("Est ADC")) else "—"
     stars_str = str(r["Stars"]) if str(r["Stars"]) not in ("—","nan","") else "—"
     hci_str   = str(r["HCI"])   if str(r["HCI"])   not in ("—","nan","") else "—"
-    name_esc = r["Name"].replace('"','&quot;').replace("'","&#39;")
-    ccn = r["CCN"]
+    ccn = str(r["CCN"]).replace('"','')
+    name_safe = r["Name"].replace("'","&#39;").replace('"','&quot;')
 
-    rows_html += f"""<tr style='background:{bg}'>
-<td class='name-cell' onclick='selectProvider("{ccn}")'>{r["Name"]}</td>
+    rows_html += f"""<tr style='background:{bg}' onclick='pick("{ccn}")'>
+<td class='name-cell'>{name_safe}</td>
 <td><span class='state-badge'>{r["State"]}</span></td>
 <td>{r["City"]}</td>
 <td class='{indep_cls}'>{r["Independent"]}</td>
@@ -400,7 +401,32 @@ for i, r in df.iterrows():
 <td><span class='{tier_cls}'>{tier}</span></td>
 </tr>"""
 
-table_html = f"""
+table_component = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {{ margin:0; padding:0; background:#0c0f18; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }}
+  .tbl-wrap {{ overflow-x:auto; overflow-y:auto; max-height:500px; border:1px solid #1e293b; border-radius:8px; }}
+  .htbl {{ width:100%; border-collapse:collapse; font-size:13px; }}
+  .htbl thead tr {{ background:#0a0d14; position:sticky; top:0; z-index:5; }}
+  .htbl th {{ padding:8px 12px; text-align:left; color:#475569; font-size:10px; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid #1e293b; white-space:nowrap; }}
+  .htbl td {{ padding:8px 12px; border-bottom:1px solid #0c0f18; color:#94a3b8; font-size:12px; }}
+  .htbl tr:hover td {{ background:#1a2235 !important; cursor:pointer; }}
+  .htbl tr.selected td {{ background:#1e3a5f !important; }}
+  .name-cell {{ color:#f1f5f9; font-weight:600; }}
+  .score-bar-wrap {{ display:flex; align-items:center; gap:6px; }}
+  .score-bar-bg {{ flex:1; background:#1e293b; border-radius:3px; height:6px; min-width:60px; }}
+  .score-bar-fill {{ height:6px; border-radius:3px; }}
+  .tier-hot {{ background:#14532d33; border:1px solid #22c55e; color:#22c55e; border-radius:20px; padding:2px 8px; font-size:11px; font-weight:700; white-space:nowrap; }}
+  .tier-warm {{ background:#78350f33; border:1px solid #f59e0b; color:#f59e0b; border-radius:20px; padding:2px 8px; font-size:11px; font-weight:700; white-space:nowrap; }}
+  .tier-cold {{ background:#1e293b; border:1px solid #374151; color:#475569; border-radius:20px; padding:2px 8px; font-size:11px; white-space:nowrap; }}
+  .state-badge {{ background:#1e3a5f; color:#93c5fd; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:700; }}
+  .indep-yes {{ color:#22c55e; font-weight:700; }}
+  .indep-no {{ color:#ef4444; font-weight:700; }}
+</style>
+</head>
+<body>
 <div class='tbl-wrap'>
 <table class='htbl'>
 <thead><tr>
@@ -410,31 +436,29 @@ table_html = f"""
 </table>
 </div>
 <script>
-function selectProvider(ccn, name) {{
-    // Set query param and reload — Streamlit will read it on rerun
-    const url = new URL(window.parent.location.href);
-    url.searchParams.set('sel', ccn);
-    window.parent.location.href = url.toString();
-}}
+  function pick(ccn) {{
+    // Highlight row
+    document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+    // Send to Streamlit
+    Streamlit.setComponentValue(ccn);
+  }}
+  Streamlit.setFrameHeight(520);
 </script>
+</body>
+</html>
 """
 
-st.markdown(table_html, unsafe_allow_html=True)
+clicked_ccn = components.html(table_component, height=520, scrolling=False)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PROVIDER DETAIL — driven by query param (set when row is clicked)
+# PROVIDER DETAIL
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-
-# Read CCN from query params (set by table row click)
-qp = st.query_params
-clicked_ccn = qp.get("sel", None)
-
-# Also allow manual text search
 st.markdown("<div style='color:#475569;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px'>📋 Provider Detail — click a row above, or type a name below</div>", unsafe_allow_html=True)
 name_input = st.text_input("Provider name", "", placeholder="Start typing a name...", label_visibility="collapsed", key="detail_search")
 
-# Resolve which provider to show: text search takes priority, then click
+# Resolve: text search takes priority, then table click
 row = None
 if name_input.strip():
     matched = df[df["Name"].str.contains(name_input.strip(), case=False, na=False)]
@@ -447,7 +471,7 @@ if name_input.strip():
     else:
         st.markdown("<div style='color:#475569;font-size:12px'>No match found.</div>", unsafe_allow_html=True)
 elif clicked_ccn:
-    matched = df[df["CCN"] == clicked_ccn]
+    matched = df[df["CCN"] == str(clicked_ccn)]
     if not matched.empty:
         row = matched.iloc[0]
 
