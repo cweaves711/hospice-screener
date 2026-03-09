@@ -358,10 +358,6 @@ def build_targets(df_gen, df_puf=None, df_prov=None, df_cahps=None, for_profit_o
 # RENDER
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Session state
-if "sel_idx" not in st.session_state:
-    st.session_state.sel_idx = None
-
 # Header
 st.markdown("""
 <div style="border-bottom:1px solid #1e293b;padding-bottom:16px;margin-bottom:20px">
@@ -378,15 +374,19 @@ with st.spinner("Loading CMS data..."):
 # ── Filter Bar ─────────────────────────────────────────────────────────────────
 st.markdown('<div class="filter-row">', unsafe_allow_html=True)
 fc1, fc2, fc3, fc4 = st.columns([2.5, 2, 1.8, 1])
+
 with fc1:
     search = st.text_input("🔍 Search provider or city", "", placeholder="e.g. Boise, Heart n Home...")
 with fc2:
-    selected_states = st.multiselect("States", options=TARGET_STATES, default=TARGET_STATES, placeholder="Select states...")
+    selected_states = st.multiselect(
+        "States", options=TARGET_STATES, default=TARGET_STATES, placeholder="Select states..."
+    )
 with fc3:
     score_filter = st.selectbox("Minimum tier", ["All tiers","🌤 WARM and above (45+)","🔥 HOT only (70+)"])
 with fc4:
     st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
     for_profit_only = st.toggle("For-profit only", value=True)
+
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Data file uploads ──────────────────────────────────────────────────────────
@@ -431,7 +431,6 @@ elif score_filter == "🌤 WARM and above (45+)": df = df[df["Score"] >= 45]
 if search:
     df = df[df["Name"].str.contains(search,case=False,na=False) |
             df["City"].str.contains(search,case=False,na=False)]
-df = df.reset_index(drop=True)
 
 # ── KPI Cards ──────────────────────────────────────────────────────────────────
 k1,k2,k3,k4,k5 = st.columns(5)
@@ -444,60 +443,139 @@ with k5: st.metric("Has Census Data", int(df["Has PUF"].sum()))
 st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
 # Export
-ec1, ec2 = st.columns([9,1])
+ec1,ec2 = st.columns([9,1])
 with ec2:
-    export_df = df.drop(columns=["Signals","Has PUF","Has CAHPS"], errors="ignore")
+    export_df = df.drop(columns=["Signals","Has PUF","Has CAHPS"],errors="ignore")
     st.download_button("⬇ Export CSV", export_df.to_csv(index=False).encode(),
-                       "hospice_targets.csv", "text/csv")
+                       "hospice_targets.csv","text/csv")
 with ec1:
-    st.markdown(f"<div style='color:#475569;font-size:12px;padding-top:8px'>{len(df)} providers · sorted by score descending</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='color:#475569;font-size:12px;padding-top:8px'>{len(df)} providers · sorted by score descending</div>",unsafe_allow_html=True)
 
 # ── Main Table ─────────────────────────────────────────────────────────────────
 if df.empty:
-    st.warning("No providers match the current filters.")
+    st.warning("No providers match the current filters. Try relaxing the state selection or tier filter.")
     st.stop()
 
-# Build display table
-tbl = df[["Name","State","City","Independent","Cert Year","Stars","HCI","Est ADC","Score","Tier"]].copy()
-tbl = tbl.rename(columns={"Cert Year":"Est.", "Est ADC":"ADC"})
+# Build clean display dataframe — only include columns that actually exist
+want_cols = ["Name","State","City","Ownership Type","Independent","Cert Year",
+             "Stars","HCI","Est ADC","Score","Tier"]
+avail_cols = [c for c in want_cols if c in df.columns]
+tbl = df[avail_cols].copy()
+tbl = tbl.rename(columns={
+    "Ownership Type": "Ownership",
+    "Cert Year": "Est.",
+    "Est ADC": "ADC",
+})
 
-# Show table — plain st.dataframe, no experimental params
-st.dataframe(
-    tbl,
-    hide_index=True,
-    height=480,
-    column_config={
-        "Name":        st.column_config.TextColumn("Provider"),
-        "State":       st.column_config.TextColumn("State"),
-        "City":        st.column_config.TextColumn("City"),
-        "Independent": st.column_config.TextColumn("Indep?"),
-        "Est.":        st.column_config.TextColumn("Est."),
-        "Stars":       st.column_config.TextColumn("Stars"),
-        "HCI":         st.column_config.TextColumn("HCI"),
-        "ADC":         st.column_config.NumberColumn("ADC", format="%.1f"),
-        "Score":       st.column_config.ProgressColumn("Score", min_value=0, max_value=125, format="%d"),
-        "Tier":        st.column_config.TextColumn("Tier"),
-    },
-    use_container_width=True,
-)
+st.caption("Click a row to load provider detail below")
 
-# ── Provider Detail — searchable name input ────────────────────────────────────
-st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-st.markdown("<div style='color:#475569;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px'>Provider Detail — type a name to look up</div>", unsafe_allow_html=True)
+# Build column config only for columns that exist in tbl
+col_cfg = {}
+if "Name"        in tbl.columns: col_cfg["Name"]        = st.column_config.TextColumn("Provider", width="large")
+if "State"       in tbl.columns: col_cfg["State"]       = st.column_config.TextColumn("State", width="small")
+if "City"        in tbl.columns: col_cfg["City"]        = st.column_config.TextColumn("City")
+if "Ownership"   in tbl.columns: col_cfg["Ownership"]   = st.column_config.TextColumn("Ownership")
+if "Independent" in tbl.columns: col_cfg["Independent"] = st.column_config.TextColumn("Indep?", width="small")
+if "Est."        in tbl.columns: col_cfg["Est."]        = st.column_config.TextColumn("Est.", width="small")
+if "Stars"       in tbl.columns: col_cfg["Stars"]       = st.column_config.TextColumn("Stars", width="small")
+if "HCI"         in tbl.columns: col_cfg["HCI"]         = st.column_config.TextColumn("HCI", width="small")
+if "ADC"         in tbl.columns: col_cfg["ADC"]         = st.column_config.NumberColumn("ADC", format="%.1f")
+if "Score"       in tbl.columns: col_cfg["Score"]       = st.column_config.ProgressColumn("Score", min_value=0, max_value=125, format="%d")
+if "Tier"        in tbl.columns: col_cfg["Tier"]        = st.column_config.TextColumn("Tier", width="small")
 
-name_input = st.text_input("Provider name", value="", placeholder="Start typing a provider name...", label_visibility="collapsed", key="name_search")
+try:
+    selection = st.dataframe(
+        tbl,
+        width="stretch",
+        height=500,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config=col_cfg,
+    )
+except Exception:
+    # Fallback for older Streamlit versions that don't support on_select
+    st.dataframe(tbl, width="stretch", height=500, hide_index=True, column_config=col_cfg)
+    selection = None
 
-matched = df[df["Name"].str.contains(name_input.strip(), case=False, na=False)] if name_input.strip() else pd.DataFrame()
+# ── Scoring Reference ──────────────────────────────────────────────────────────
+with st.expander("📊  How Scoring Works", expanded=False):
+    st.markdown("""
+<div style="color:#94a3b8;font-size:13px;padding:4px 0 12px 0">
+All for-profit hospices start with a <strong style="color:#e2e8f0">base score of 25</strong>.
+Points are added or subtracted based on six acquisition signals below.
+Maximum possible score is <strong style="color:#e2e8f0">125</strong>.
+<br><br>
+<strong style="color:#22c55e">🔥 HOT ≥ 70</strong> &nbsp;·&nbsp;
+<strong style="color:#f59e0b">🌤 WARM ≥ 45</strong> &nbsp;·&nbsp;
+<strong style="color:#475569">❄️ COLD &lt; 45</strong>
+</div>
 
-if name_input.strip() and not matched.empty:
-    if len(matched) > 1:
-        chosen_name = st.selectbox("Multiple matches — select one:", matched["Name"].tolist(), key="name_pick")
-        row = matched[matched["Name"] == chosen_name].iloc[0]
-    else:
-        row = matched.iloc[0]
+<table class="score-table" style="width:100%;border-collapse:collapse">
+<thead>
+  <tr>
+    <th>Signal</th><th>Condition</th>
+    <th style="text-align:right">Points</th>
+    <th>Why it matters</th>
+  </tr>
+</thead>
+<tbody>
+  <tr><td style="color:#e2e8f0;font-weight:600">Independence</td><td style="color:#94a3b8">No chain affiliation (CMS)</td><td style="text-align:right;color:#22c55e;font-weight:700">+30</td><td style="color:#64748b">Founder-owned = motivated seller, simpler structure</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Independence</td><td style="color:#94a3b8">Chain-affiliated</td><td style="text-align:right;color:#ef4444;font-weight:700">−20</td><td style="color:#64748b">Corporate seller = lawyers, longer timeline, harder terms</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2005</td><td style="text-align:right;color:#22c55e;font-weight:700">+25</td><td style="color:#64748b">20+ years of referral relationships — hardest moat to replicate</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2010</td><td style="text-align:right;color:#22c55e;font-weight:700">+20</td><td style="color:#64748b">Deep market presence</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2015</td><td style="text-align:right;color:#22c55e;font-weight:700">+14</td><td style="color:#64748b">Mature operation</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≤ 2019</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Growing operation</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">Certified ≥ 2020</td><td style="text-align:right;color:#475569;font-weight:700">+3</td><td style="color:#64748b">Limited track record</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">1–2 stars</td><td style="text-align:right;color:#ef4444;font-weight:700">+25 🔥</td><td style="color:#64748b">Distressed operator — more likely to accept favorable terms</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">3 stars</td><td style="text-align:right;color:#f59e0b;font-weight:700">+10</td><td style="color:#64748b">Average quality, improvement upside</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">4–5 stars</td><td style="text-align:right;color:#22c55e;font-weight:700">+15</td><td style="color:#64748b">Premium asset, strong clinical outcomes</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Star Rating</td><td style="color:#94a3b8">No rating</td><td style="text-align:right;color:#f59e0b;font-weight:700">+12</td><td style="color:#64748b">Below 50-patient survey threshold — small target signal</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">Below 6 / 10</td><td style="text-align:right;color:#ef4444;font-weight:700">+20 🔥</td><td style="color:#64748b">Operational challenges — seller leverage is low</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">6–8 / 10</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Average quality</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">8+ / 10</td><td style="text-align:right;color:#22c55e;font-weight:700">+5</td><td style="color:#64748b">Strong operator — commands premium valuation</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">HCI Score</td><td style="color:#94a3b8">Not scored</td><td style="text-align:right;color:#f59e0b;font-weight:700">+10</td><td style="color:#64748b">Too small for CMS scoring — small target signal</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Est. ADC</td><td style="color:#94a3b8">10–50 patients/day</td><td style="text-align:right;color:#22c55e;font-weight:700">+15</td><td style="color:#64748b">Sweet spot — real cash flow, manageable for seller note structure</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Est. ADC</td><td style="color:#94a3b8">50–80 patients/day</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Slightly above target, may need larger deal structure</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">Est. ADC</td><td style="color:#94a3b8">&gt; 80 patients/day</td><td style="text-align:right;color:#475569;font-weight:700">+3</td><td style="color:#64748b">Larger operator</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">Below 70%</td><td style="text-align:right;color:#ef4444;font-weight:700">+15 🔥</td><td style="color:#64748b">Family dissatisfaction — operational or staffing issues</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">70–84%</td><td style="text-align:right;color:#f59e0b;font-weight:700">+6</td><td style="color:#64748b">Average family satisfaction</td></tr>
+  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">85%+</td><td style="text-align:right;color:#22c55e;font-weight:700">+10</td><td style="color:#64748b">Strong reputation — families rate care highly</td></tr>
+</tbody>
+</table>
 
+<div style="margin-top:14px;background:#0f1520;border:1px solid #1e293b;border-radius:6px;padding:12px 16px;font-size:11px;color:#64748b">
+  <strong style="color:#94a3b8">Data sources:</strong>
+  CMS General Information (ownership, cert date) ·
+  PAC PUF 2023 (ADC estimated as service days ÷ 365, revenue) ·
+  Provider Information (stars, HCI, chain) ·
+  CAHPS Survey (family satisfaction) ·
+  <strong style="color:#94a3b8">Note:</strong>
+  Stars and HCI are only populated for providers with 50+ patients.
+  ADC does not include non-Medicare patients.
+  CMS data lags reality by 6–18 months — always verify ownership independently before outreach.
+</div>
+""", unsafe_allow_html=True)
+
+# ── Provider Detail ────────────────────────────────────────────────────────────
+try:
+    selected_rows = selection.selection.rows if (selection and selection.selection.rows) else []
+except Exception:
+    selected_rows = []
+
+if not selected_rows:
+    st.markdown("""
+    <div style="background:#0f1520;border:1px dashed #1e293b;border-radius:8px;
+                padding:24px;text-align:center;color:#374151;font-size:13px;margin-top:8px">
+      Click any row above to view provider detail
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    row = df.iloc[selected_rows[0]]
     sc  = row["Score"]
     col = score_color(sc)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     d1, d2 = st.columns([3, 1])
     with d1:
@@ -512,33 +590,35 @@ if name_input.strip() and not matched.empty:
         </div>
         """, unsafe_allow_html=True)
 
-        adc_d   = f"{row['Est ADC']:.1f} pts/day"             if pd.notna(row.get("Est ADC"))         else "No PUF data"
+        adc_d   = f"{row['Est ADC']:.1f} pts/day" if pd.notna(row.get("Est ADC")) else "No PUF data"
         rev_d   = f"${row['Est Revenue ($k)']:.0f}k Medicare/yr" if pd.notna(row.get("Est Revenue ($k)")) else "No PUF data"
-        cahps_d = f"{row['CAHPS %']}%"                         if pd.notna(row.get("CAHPS %"))          else "Not available"
-        stars_v = f"{row['Stars']}★"  if str(row['Stars'])  not in ("—","nan","") else "No rating"
+        cahps_d = f"{row['CAHPS %']}%" if pd.notna(row.get("CAHPS %")) else "Not available"
+        stars_v = f"{row['Stars']}★" if str(row['Stars']) not in ("—","nan","") else "No rating"
         hci_v   = f"{row['HCI']} / 10" if str(row['HCI']) not in ("—","nan","") else "Not scored"
 
         items = [
-            ("Ownership Type",        row.get("Ownership Type","—")),
-            ("Independent?",          row.get("Independent","—")),
-            ("Certified",             row.get("Cert Year","—")),
+            ("Ownership Type",        row.get("Ownership Type", "—")),
+            ("Independent?",          row.get("Independent", "—")),
+            ("Certified",             row.get("Cert Year", "—")),
             ("CMS Stars",             stars_v),
             ("HCI Score",             hci_v),
             ("Est. ADC",              adc_d),
             ("Est. Medicare Revenue", rev_d),
             ("CAHPS Family Rating",   cahps_d),
         ]
-        item_cols = st.columns(4)
+        cols = st.columns(4)
         for i, (k, v) in enumerate(items):
-            with item_cols[i % 4]:
+            with cols[i % 4]:
                 st.markdown(
                     f'<div class="info-card"><div class="info-label">{k}</div>'
                     f'<div class="info-value">{v}</div></div>',
                     unsafe_allow_html=True
                 )
+
     with d2:
         st.markdown(f"""
-        <div style="background:{col}18;border:2px solid {col};border-radius:12px;padding:24px 16px;text-align:center">
+        <div style="background:{col}18;border:2px solid {col};border-radius:12px;
+                    padding:24px 16px;text-align:center">
           <div style="font-size:44px;font-weight:700;color:{col};line-height:1">{sc}</div>
           <div style="font-size:10px;color:#475569;margin:4px 0 8px 0">out of 125</div>
           <div style="font-size:16px;font-weight:700;color:{col}">{row['Tier']}</div>
@@ -547,6 +627,7 @@ if name_input.strip() and not matched.empty:
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:11px;font-weight:700;color:#475569;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px'>Acquisition Signals</div>", unsafe_allow_html=True)
+
     for sig in row["Signals"]:
         t    = sig["type"]
         icon = "🔥" if t=="hot" else "✓" if t=="positive" else "⚠️" if t=="warn" else "✗" if t=="negative" else "·"
@@ -560,61 +641,3 @@ if name_input.strip() and not matched.empty:
             f'</div>',
             unsafe_allow_html=True
         )
-elif name_input.strip():
-    st.markdown("<div style='color:#475569;font-size:12px'>No providers match that name.</div>", unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div style="background:#0f1520;border:1px dashed #1e293b;border-radius:8px;
-                padding:20px;text-align:center;color:#374151;font-size:13px">
-      Type a provider name above to view detail
-    </div>
-    """, unsafe_allow_html=True)
-
-# ── Scoring Reference ──────────────────────────────────────────────────────────
-with st.expander("📊  How Scoring Works", expanded=False):
-    st.markdown("""
-<div style="color:#94a3b8;font-size:13px;padding:4px 0 12px 0">
-All for-profit hospices start with a <strong style="color:#e2e8f0">base score of 25</strong>.
-Points are added or subtracted based on six acquisition signals.
-Maximum possible score is <strong style="color:#e2e8f0">125</strong>.
-<br><br>
-<strong style="color:#22c55e">🔥 HOT ≥ 70</strong> &nbsp;·&nbsp;
-<strong style="color:#f59e0b">🌤 WARM ≥ 45</strong> &nbsp;·&nbsp;
-<strong style="color:#475569">❄️ COLD &lt; 45</strong>
-</div>
-<table class="score-table" style="width:100%;border-collapse:collapse">
-<thead><tr>
-  <th>Signal</th><th>Condition</th>
-  <th style="text-align:right">Points</th><th>Why it matters</th>
-</tr></thead>
-<tbody>
-  <tr><td style="color:#e2e8f0;font-weight:600">Independence</td><td style="color:#94a3b8">No chain affiliation</td><td style="text-align:right;color:#22c55e;font-weight:700">+30</td><td style="color:#64748b">Founder-owned = motivated seller</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Independence</td><td style="color:#94a3b8">Chain-affiliated</td><td style="text-align:right;color:#ef4444;font-weight:700">−20</td><td style="color:#64748b">Corporate seller = longer timeline</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">≤ 2005</td><td style="text-align:right;color:#22c55e;font-weight:700">+25</td><td style="color:#64748b">20+ yr referral roots</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">≤ 2010</td><td style="text-align:right;color:#22c55e;font-weight:700">+20</td><td style="color:#64748b">Deep market presence</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">≤ 2015</td><td style="text-align:right;color:#22c55e;font-weight:700">+14</td><td style="color:#64748b">Mature operation</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">≤ 2019</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Growing operation</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Cert Age</td><td style="color:#94a3b8">≥ 2020</td><td style="text-align:right;color:#475569;font-weight:700">+3</td><td style="color:#64748b">Limited track record</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Stars</td><td style="color:#94a3b8">1–2 stars</td><td style="text-align:right;color:#ef4444;font-weight:700">+25 🔥</td><td style="color:#64748b">Distressed — motivated seller</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Stars</td><td style="color:#94a3b8">3 stars</td><td style="text-align:right;color:#f59e0b;font-weight:700">+10</td><td style="color:#64748b">Average, improvement upside</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Stars</td><td style="color:#94a3b8">4–5 stars</td><td style="text-align:right;color:#22c55e;font-weight:700">+15</td><td style="color:#64748b">Premium asset</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">Stars</td><td style="color:#94a3b8">No rating</td><td style="text-align:right;color:#f59e0b;font-weight:700">+12</td><td style="color:#64748b">Small — below survey threshold</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">HCI</td><td style="color:#94a3b8">Below 6</td><td style="text-align:right;color:#ef4444;font-weight:700">+20 🔥</td><td style="color:#64748b">Operational challenges</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">HCI</td><td style="color:#94a3b8">6–8</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Average quality</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">HCI</td><td style="color:#94a3b8">8+</td><td style="text-align:right;color:#22c55e;font-weight:700">+5</td><td style="color:#64748b">Strong operator</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">HCI</td><td style="color:#94a3b8">Not scored</td><td style="text-align:right;color:#f59e0b;font-weight:700">+10</td><td style="color:#64748b">Too small for CMS scoring</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">ADC</td><td style="color:#94a3b8">10–50 pts/day</td><td style="text-align:right;color:#22c55e;font-weight:700">+15</td><td style="color:#64748b">Target range — seller note sweet spot</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">ADC</td><td style="color:#94a3b8">50–80 pts/day</td><td style="text-align:right;color:#f59e0b;font-weight:700">+8</td><td style="color:#64748b">Slightly above target</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">ADC</td><td style="color:#94a3b8">&gt; 80 pts/day</td><td style="text-align:right;color:#475569;font-weight:700">+3</td><td style="color:#64748b">Larger operator</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">Below 70%</td><td style="text-align:right;color:#ef4444;font-weight:700">+15 🔥</td><td style="color:#64748b">Family dissatisfaction</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">70–84%</td><td style="text-align:right;color:#f59e0b;font-weight:700">+6</td><td style="color:#64748b">Average satisfaction</td></tr>
-  <tr><td style="color:#e2e8f0;font-weight:600">CAHPS</td><td style="color:#94a3b8">85%+</td><td style="text-align:right;color:#22c55e;font-weight:700">+10</td><td style="color:#64748b">Strong family reputation</td></tr>
-</tbody>
-</table>
-<div style="margin-top:14px;background:#0f1520;border:1px solid #1e293b;border-radius:6px;padding:12px 16px;font-size:11px;color:#64748b">
-  <strong style="color:#94a3b8">Data sources:</strong>
-  CMS General Information · PAC PUF 2023 · Provider Information · CAHPS Survey ·
-  <strong style="color:#94a3b8">Note:</strong>
-  Stars/HCI only for 50+ patient providers. ADC = Medicare only. CMS data lags 6–18 months.
-</div>
-""", unsafe_allow_html=True)
